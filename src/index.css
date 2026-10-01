@@ -25,20 +25,29 @@
 
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: var(--bg-base);
+    background-color: transparent !important;
+    background: transparent !important;
     color: var(--text-primary);
     overflow-x: hidden;
+    min-height: 100%;
+  }
+
+  html,
+  #root {
+    background-color: transparent !important;
+    background: transparent !important;
+    min-height: 100%;
   }
 }
 
-/* Glassmorphism Styles - Updated with 22px blur, 170% saturation, and dynamic water border/glow */
+/* Glassmorphism Styles - Transparent (rgba 0.06) with blur 18-22px so moving water is visible */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.075);
-  backdrop-filter: blur(22px) saturate(170%);
-  -webkit-backdrop-filter: blur(22px) saturate(170%);
-  border: 1px solid var(--water-border, rgba(255, 255, 255, 0.18));
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--water-border, rgba(255, 255, 255, 0.16));
   border-radius: 22px;
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 16px -4px var(--glow), inset 0 1px 1px rgba(255, 255, 255, 0.22);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4), 0 0 16px -4px var(--glow), inset 0 1px 1px rgba(255, 255, 255, 0.18);
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
               border-color 0.3s ease,
               box-shadow 0.3s ease,
@@ -48,21 +57,22 @@
 .glass-panel:hover {
   transform: translateY(-4px);
   border-color: var(--accent);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.65), 0 0 26px -3px var(--glow), inset 0 1px 2px rgba(255, 255, 255, 0.35);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.55), 0 0 26px -3px var(--glow), inset 0 1px 2px rgba(255, 255, 255, 0.28);
 }
 
 .glass-panel-static {
-  background: rgba(255, 255, 255, 0.075);
-  backdrop-filter: blur(22px) saturate(170%);
-  -webkit-backdrop-filter: blur(22px) saturate(170%);
-  border: 1px solid var(--water-border, rgba(255, 255, 255, 0.18));
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--water-border, rgba(255, 255, 255, 0.16));
   border-radius: 22px;
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 16px -4px var(--glow), inset 0 1px 1px rgba(255, 255, 255, 0.22);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4), 0 0 16px -4px var(--glow), inset 0 1px 1px rgba(255, 255, 255, 0.18);
 }
 
-/* Idle Ocean Drift 40s Color Cycle Animation */
-@keyframes ocean-drift {
+/* Idle Ocean Drift 25s Color Cycle Animation */
+@keyframes ocean-drift-25s {
   0% {
+    /* Deep Blue */
     filter: hue-rotate(0deg);
   }
   25% {
@@ -71,10 +81,10 @@
   }
   50% {
     /* Teal */
-    filter: hue-rotate(95deg);
+    filter: hue-rotate(100deg);
   }
   75% {
-    /* Violet / Purple */
+    /* Violet / Royal Purple */
     filter: hue-rotate(240deg);
   }
   100% {
@@ -83,8 +93,8 @@
   }
 }
 
-.animate-ocean-drift-40s {
-  animation: ocean-drift 40s linear infinite;
+.animate-ocean-drift-25s {
+  animation: ocean-drift-25s 25s linear infinite;
   will-change: filter;
 }
 
@@ -362,27 +372,39 @@
   animation: fade-slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Reduced motion preference */
+/* Reduced motion preference: keep water moving at gentler 50% speed; only manual Pause stops it */
 @media (prefers-reduced-motion: reduce) {
   .animate-blob-1,
   .animate-blob-2,
   .animate-blob-3,
   .animate-blob-4,
   .shimmer-active::after,
-  .animate-fade-slide-up,
-  .animate-ocean-drift-40s,
-  .animate-wave-1,
-  .animate-wave-2,
-  .animate-wave-3,
-  .animate-wave-4,
-  .animate-caustics-1,
-  .animate-caustics-2,
-  .animate-sunlight-rays,
-  .animate-bubble-rise {
+  .animate-fade-slide-up {
     animation: none !important;
     transform: none !important;
   }
-  * {
-    transition-duration: 0.01ms !important;
+  .animate-wave-1 {
+    animation-duration: 68s !important;
+  }
+  .animate-wave-2 {
+    animation-duration: 52s !important;
+  }
+  .animate-wave-3 {
+    animation-duration: 38s !important;
+  }
+  .animate-wave-4 {
+    animation-duration: 26s !important;
+  }
+  .animate-ocean-drift-25s {
+    animation-duration: 50s !important;
+  }
+  .animate-caustics-1 {
+    animation-duration: 36s !important;
+  }
+  .animate-caustics-2 {
+    animation-duration: 48s !important;
+  }
+  .animate-bubble-rise {
+    animation-duration: 36s !important;
   }
 }

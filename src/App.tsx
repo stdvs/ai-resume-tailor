@@ -123,7 +123,7 @@ export default function App() {
     root.style.setProperty('--blob-2', activeThemeConfig.blob2);
     root.style.setProperty('--blob-3', activeThemeConfig.blob3);
     root.style.setProperty('--water-border', `color-mix(in srgb, ${activeThemeConfig.accent} 25%, rgba(255, 255, 255, 0.18))`);
-    root.style.setProperty('--bg-base', isDark ? '#0B1020' : '#0F172A');
+    root.style.setProperty('--bg-base', 'transparent');
   }, [activeThemeConfig, isDark]);
 
   // Handle file extraction
@@ -500,8 +500,8 @@ export default function App() {
   }, [isAnalyzing, resumeText, jobDescription, analysisResult, currentUser]);
 
   return (
-    <div className="min-h-screen text-slate-100 flex flex-col font-sans relative selection:bg-indigo-500 selection:text-white">
-      {/* 1. Full-Screen Dynamic Water Background */}
+    <div className="min-h-screen text-slate-100 flex flex-col font-sans relative selection:bg-indigo-500 selection:text-white bg-transparent">
+      {/* 1. Full-Screen Dynamic Water Background: position: fixed; inset: 0; z-index: 0 */}
       <WaterBackground
         isPaused={isBackgroundPaused}
         colors={activeThemeConfig}
@@ -511,26 +511,28 @@ export default function App() {
         themePreset={themePreset}
       />
 
-      {/* 2. Sticky Glass Navbar */}
-      <GlassNavbar
-        currentTheme={themePreset}
-        activeThemeConfig={activeThemeConfig}
-        onSelectTheme={setThemePreset}
-        backgroundMode={backgroundMode}
-        onSelectBackgroundMode={(m) => {
-          setBackgroundMode(m);
-          sessionStorage.setItem('resume_match_bg_mode', m);
-        }}
-        isBackgroundPaused={isBackgroundPaused}
-        onToggleBackgroundPause={() => setIsBackgroundPaused((prev) => !prev)}
-        isDark={isDark}
-        onToggleDark={() => setIsDark(!isDark)}
-        onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
-        onOpenHistory={() => setIsHistoryDrawerOpen(true)}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-        onSignOut={handleSignOut}
-        user={currentUser}
-      />
+      {/* 2. All App Content in wrapper at z-index: 1 or higher */}
+      <div className="relative z-10 flex flex-col min-h-screen bg-transparent">
+        {/* Sticky Glass Navbar */}
+        <GlassNavbar
+          currentTheme={themePreset}
+          activeThemeConfig={activeThemeConfig}
+          onSelectTheme={setThemePreset}
+          backgroundMode={backgroundMode}
+          onSelectBackgroundMode={(m) => {
+            setBackgroundMode(m);
+            sessionStorage.setItem('resume_match_bg_mode', m);
+          }}
+          isBackgroundPaused={isBackgroundPaused}
+          onToggleBackgroundPause={() => setIsBackgroundPaused((prev) => !prev)}
+          isDark={isDark}
+          onToggleDark={() => setIsDark(!isDark)}
+          onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
+          onOpenHistory={() => setIsHistoryDrawerOpen(true)}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onSignOut={handleSignOut}
+          user={currentUser}
+        />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10 space-y-10">
@@ -819,6 +821,7 @@ export default function App() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }

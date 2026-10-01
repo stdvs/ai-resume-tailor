@@ -144,21 +144,21 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
       />
 
       {uploadedFile ? (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between">
+        <div className="bg-white/[0.06] backdrop-blur-md border border-white/20 rounded-xl p-4 flex items-center justify-between text-white shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 flex-shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300 flex-shrink-0">
               <FileText className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-slate-900 truncate max-w-[200px] sm:max-w-xs">
+                <p className="text-sm font-semibold text-white truncate max-w-[200px] sm:max-w-xs">
                   {uploadedFile.name}
                 </p>
-                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/25 border border-emerald-400/30 text-emerald-300">
                   Parsed
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-300 mt-0.5">
                 {formatFileSize(uploadedFile.size)} · {uploadedFile.wordCount?.toLocaleString() || '–'} words extracted
               </p>
             </div>
@@ -167,13 +167,13 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="text-xs font-medium text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-white transition-colors cursor-pointer"
+              className="text-xs font-semibold text-cyan-300 hover:text-white px-2.5 py-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
             >
               Replace
             </button>
             <button
               onClick={onFileRemoved}
-              className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/20 transition-colors cursor-pointer"
               title="Remove file"
             >
               <X className="w-4 h-4" />
@@ -186,37 +186,37 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onClick={() => !isExtracting && fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
+          className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer backdrop-blur-md ${
             isDragOver
-              ? 'border-indigo-500 bg-indigo-50/50'
-              : 'border-slate-200 hover:border-indigo-400 hover:bg-slate-50/60 bg-white'
+              ? 'border-cyan-400 bg-cyan-500/20 shadow-lg shadow-cyan-500/10'
+              : 'border-white/20 hover:border-cyan-400/60 bg-white/[0.04] hover:bg-white/[0.08]'
           }`}
         >
           {isExtracting ? (
             <div className="flex flex-col items-center justify-center py-4">
-              <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-2" />
-              <p className="text-sm font-medium text-slate-800">
+              <Loader2 className="w-8 h-8 text-cyan-300 animate-spin mb-2" />
+              <p className="text-sm font-medium text-white">
                 Extracting and parsing resume content...
               </p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-300 mt-1">
                 Reading document text for ATS compatibility
               </p>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-2">
-              <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mb-3">
+              <div className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-cyan-300 mb-3 shadow-inner">
                 <UploadCloud className="w-6 h-6" />
               </div>
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold text-white">
                 Click to upload or drag & drop your resume
               </p>
-              <p className="text-xs text-slate-500 mt-1.5">
+              <p className="text-xs text-slate-300 mt-1.5">
                 Supported formats: PDF, DOCX, or TXT (Max 10MB)
               </p>
-              <div className="mt-4 flex items-center gap-2 text-[11px] font-medium text-slate-400">
-                <span className="px-2 py-0.5 rounded bg-slate-100">.pdf</span>
-                <span className="px-2 py-0.5 rounded bg-slate-100">.docx</span>
-                <span className="px-2 py-0.5 rounded bg-slate-100">.txt</span>
+              <div className="mt-4 flex items-center gap-2 text-[11px] font-medium text-slate-300 justify-center">
+                <span className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15">.pdf</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15">.docx</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15">.txt</span>
               </div>
             </div>
           )}
