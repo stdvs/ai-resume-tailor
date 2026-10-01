@@ -186,10 +186,10 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onClick={() => !isExtracting && fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer backdrop-blur-md ${
+          className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer backdrop-blur-xl ${
             isDragOver
               ? 'border-cyan-400 bg-cyan-500/20 shadow-lg shadow-cyan-500/10'
-              : 'border-white/20 hover:border-cyan-400/60 bg-white/[0.04] hover:bg-white/[0.08]'
+              : 'border-white/20 hover:border-cyan-400/60 bg-white/[0.05] hover:bg-white/[0.09]'
           }`}
         >
           {isExtracting ? (

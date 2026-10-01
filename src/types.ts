@@ -26,7 +26,7 @@ export interface KeywordDensityItem {
   keyword: string;
   count: number;
   density: number; // percentage
-  status: 'optimal' | 'stuffed' | 'sparse';
+  status: 'optimal' | 'stuffed' | 'sparse' | 'under-used';
   recommendation: string;
 }
 
@@ -50,6 +50,154 @@ export interface AtsSimulationReport {
   raw_parser_simulation_text?: string;
 }
 
+// -------------------------------------------------------------
+// 10 DEEP ANALYSIS ENGINE TYPES
+// -------------------------------------------------------------
+
+// 1. ATS FORMATTING CHECK
+export interface AtsFormattingCheckItem {
+  category: string; // e.g. "Tables & Columns", "Graphics & Icons", "Fonts & Symbols", "Standard Section Headings", "Contact Details", "Date Formats"
+  item: string;
+  status: 'pass' | 'warn' | 'fail';
+  fix_tip: string;
+}
+
+export interface AtsFormattingCheck {
+  overall_score: number;
+  passed_count: number;
+  warnings_count: number;
+  failed_count: number;
+  issues: AtsFormattingCheckItem[];
+  summary: string;
+}
+
+// 2. KEYWORD DENSITY MAP
+export interface KeywordDensityMapItem {
+  keyword: string;
+  count_in_resume: number;
+  target_frequency: string;
+  density_percent: number;
+  flag: 'optimal' | 'under-used' | 'over-stuffed' | 'missing';
+  recommendation: string;
+}
+
+// 3. WEAK LANGUAGE DETECTOR
+export interface WeakLanguageItem {
+  phrase: string;
+  found_in_bullet: string;
+  issue_type: 'vague_phrase' | 'passive_voice' | 'buzzword';
+  strong_alternatives: string[];
+}
+
+export interface ActionVerbCategory {
+  category: string; // e.g. "Leadership & Strategy", "Technical Execution", "Optimization & Impact", "Collaboration"
+  suggested_verbs: string[];
+}
+
+export interface WeakLanguageReport {
+  vague_phrases: WeakLanguageItem[];
+  action_verbs_by_category: ActionVerbCategory[];
+  total_weak_phrases_count: number;
+  summary: string;
+}
+
+// 4. IMPACT / QUANTIFICATION CHECK
+export interface UnquantifiedBulletItem {
+  bullet: string;
+  suggested_metric_placement: string; // contains "[add metric]" placeholder
+  tip: string;
+}
+
+export interface ImpactQuantificationReport {
+  bullets_missing_metrics: UnquantifiedBulletItem[];
+  quantified_bullets_count: number;
+  unquantified_bullets_count: number;
+  quantification_score: number; // 0 - 100
+  summary: string;
+}
+
+// 5. SECTION COMPLETENESS SCORE
+export interface SectionCompletenessItem {
+  section_name: string; // Summary, Skills, Experience, Education, Projects, Certifications, Links
+  status: 'complete' | 'needs_improvement' | 'missing';
+  score: number; // 0 - 100
+  quick_suggestion: string;
+}
+
+export interface SectionCompletenessReport {
+  overall_completeness_score: number; // 0 - 100
+  sections: SectionCompletenessItem[];
+  summary: string;
+}
+
+// 6. RED FLAG SCANNER
+export interface RedFlagItem {
+  type: 'employment_gap' | 'short_stint' | 'typo' | 'inconsistent_tense' | 'length_issue' | 'missing_date';
+  severity: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  recommendation: string;
+}
+
+export interface RedFlagReport {
+  has_red_flags: boolean;
+  flags_count: number;
+  red_flags: RedFlagItem[];
+  risk_level: 'low' | 'medium' | 'high';
+  summary: string;
+}
+
+// 7. 6-SECOND RECRUITER SCAN
+export interface RecruiterScanItem {
+  category: string; // Name & Contact, Current/Recent Title, Target Role Alignment, Prominent Skills, Visual Trajectory
+  detail: string;
+  impression: 'Strong' | 'Average' | 'Weak';
+}
+
+export interface SixSecondRecruiterScanReport {
+  what_they_notice_first: RecruiterScanItem[];
+  what_they_miss: string[];
+  scan_verdict: string;
+  recruiter_action: 'Proceed to Interview' | 'Detailed Review' | 'Likely Pass';
+}
+
+// 8. READABILITY AND TONE
+export interface ReadabilityToneReport {
+  reading_level: string; // e.g. "Grade 10 - Professional Technical"
+  avg_bullet_length_words: number;
+  sentence_variety: 'Low' | 'Moderate' | 'High';
+  tone_label: 'Confident' | 'Neutral' | 'Passive';
+  tone_feedback: string;
+  readability_score: number; // 0 - 100
+}
+
+// 9. INCLUSIVE LANGUAGE CHECK
+export interface InclusiveLanguageFlag {
+  flagged_term: string;
+  context_sentence: string;
+  bias_type: 'gendered' | 'ageist' | 'exclusionary' | 'ableist';
+  neutral_alternative: string;
+  explanation: string;
+}
+
+export interface InclusiveLanguageReport {
+  inclusive_score: number; // 0 - 100
+  flags: InclusiveLanguageFlag[];
+  summary: string;
+}
+
+// 10. SKILL GAP ROADMAP
+export interface SkillGapRoadmapItem {
+  missing_skill: string;
+  priority: 'High' | 'Medium' | 'Low';
+  what_to_learn: string;
+  small_project_to_build: string;
+  estimated_time: string; // e.g. "1-2 weeks", "3-5 days"
+}
+
+// -------------------------------------------------------------
+// CORE ANALYSIS RESULT (COMBINED ENGINE)
+// -------------------------------------------------------------
 export interface AnalysisResult {
   match_score: number;
   score_explanation: string;
@@ -64,6 +212,18 @@ export interface AnalysisResult {
   ats_formatting_tips?: string[];
   job_title_guess?: string;
   ats_simulation?: AtsSimulationReport;
+
+  // New Deep Analysis Engine Modules
+  ats_formatting_check?: AtsFormattingCheck;
+  keyword_density_map?: KeywordDensityMapItem[];
+  weak_language_detector?: WeakLanguageReport;
+  impact_quantification?: ImpactQuantificationReport;
+  section_completeness?: SectionCompletenessReport;
+  red_flag_scanner?: RedFlagReport;
+  six_second_recruiter_scan?: SixSecondRecruiterScanReport;
+  readability_and_tone?: ReadabilityToneReport;
+  inclusive_language_check?: InclusiveLanguageReport;
+  skill_gap_roadmap?: SkillGapRoadmapItem[];
 }
 
 export interface UploadedFileInfo {
@@ -89,6 +249,16 @@ export interface UserHistoryItem {
   preApplyChecklist: string[];
   tailoredResumeText: string;
   atsSimulation?: AtsSimulationReport;
+  ats_formatting_check?: AtsFormattingCheck;
+  keyword_density_map?: KeywordDensityMapItem[];
+  weak_language_detector?: WeakLanguageReport;
+  impact_quantification?: ImpactQuantificationReport;
+  section_completeness?: SectionCompletenessReport;
+  red_flag_scanner?: RedFlagReport;
+  six_second_recruiter_scan?: SixSecondRecruiterScanReport;
+  readability_and_tone?: ReadabilityToneReport;
+  inclusive_language_check?: InclusiveLanguageReport;
+  skill_gap_roadmap?: SkillGapRoadmapItem[];
 }
 
 export type ThemePreset = 'auto' | 'aurora' | 'sunset' | 'ocean' | 'forest';

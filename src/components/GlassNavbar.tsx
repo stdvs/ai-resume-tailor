@@ -10,23 +10,23 @@ import {
   LogOut,
   ChevronDown,
   Check,
-  Waves,
   Play,
   Pause,
-  Video,
-  Layers,
+  Droplets,
 } from 'lucide-react';
 import { User } from '../lib/firebase';
 import { ThemePreset, ThemeConfig } from '../types';
 import { THEME_PRESETS } from '../lib/themeSystem';
-import { BackgroundMode } from './WaterBackground';
+import { LiquidRendererMode, LiquidIntensityLevel } from './LiquidBackground';
 
 interface GlassNavbarProps {
   currentTheme: ThemePreset;
   activeThemeConfig: ThemeConfig;
   onSelectTheme: (preset: ThemePreset) => void;
-  backgroundMode?: BackgroundMode;
-  onSelectBackgroundMode?: (mode: BackgroundMode) => void;
+  fluidIntensity?: LiquidIntensityLevel;
+  onSelectFluidIntensity?: (level: LiquidIntensityLevel) => void;
+  backgroundMode?: LiquidRendererMode;
+  onSelectBackgroundMode?: (mode: LiquidRendererMode) => void;
   isBackgroundPaused: boolean;
   onToggleBackgroundPause: () => void;
   isDark: boolean;
@@ -42,6 +42,8 @@ export const GlassNavbar: React.FC<GlassNavbarProps> = ({
   currentTheme,
   activeThemeConfig,
   onSelectTheme,
+  fluidIntensity = 'normal',
+  onSelectFluidIntensity,
   isBackgroundPaused,
   onToggleBackgroundPause,
   isDark,
@@ -97,14 +99,14 @@ export const GlassNavbar: React.FC<GlassNavbarProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-2.5">
-          {/* Water Animation Play / Pause Toggle Button */}
+          {/* Liquid Animation Play / Pause Toggle Button */}
           <button
             onClick={onToggleBackgroundPause}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 text-white/90 hover:text-white transition-all cursor-pointer shadow-2xs hover:border-white/30"
-            title={isBackgroundPaused ? 'Resume water animation' : 'Pause water animation'}
-            aria-label={isBackgroundPaused ? 'Resume water animation' : 'Pause water animation'}
+            title={isBackgroundPaused ? 'Resume liquid animation' : 'Pause liquid animation'}
+            aria-label={isBackgroundPaused ? 'Resume liquid animation' : 'Pause liquid animation'}
           >
-            <Waves className="w-3.5 h-3.5 text-cyan-300" />
+            <Droplets className="w-3.5 h-3.5 text-cyan-300" />
             {isBackgroundPaused ? (
               <Play className="w-3.5 h-3.5 text-emerald-400" />
             ) : (
@@ -166,6 +168,35 @@ export const GlassNavbar: React.FC<GlassNavbarProps> = ({
                 })}
               </div>
             )}
+          </div>
+
+          {/* Liquid Intensity Control: Calm / Normal / Lively */}
+          <div
+            className="hidden sm:flex items-center bg-white/10 p-1 rounded-xl border border-white/15 text-xs text-slate-300 shadow-2xs"
+            title="Liquid Intensity: changes blob speed and organic wobble"
+          >
+            <div className="flex items-center gap-1 px-1.5 text-[11px] font-semibold text-cyan-300">
+              <Droplets className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden md:inline">Liquid:</span>
+            </div>
+            {(['calm', 'normal', 'lively'] as LiquidIntensityLevel[]).map((level) => {
+              const isSelected = (fluidIntensity || 'normal') === level;
+              return (
+                <button
+                  key={level}
+                  onClick={() => onSelectFluidIntensity?.(level)}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-medium capitalize transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-white/25 text-white font-bold shadow-xs'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                  aria-pressed={isSelected}
+                  aria-label={`Set liquid intensity to ${level}`}
+                >
+                  {level}
+                </button>
+              );
+            })}
           </div>
 
           {/* Dark / Light Toggle */}

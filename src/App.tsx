@@ -35,7 +35,7 @@ import {
   ThemePreset,
 } from './types';
 import { SAMPLE_RESUME, SAMPLE_JOB_DESCRIPTION } from './sampleData';
-import { WaterBackground, BackgroundMode } from './components/WaterBackground';
+import { LiquidBackground, LiquidRendererMode, LiquidIntensityLevel } from './components/LiquidBackground';
 import { GlassNavbar } from './components/GlassNavbar';
 import { GlassInputPanels } from './components/GlassInputPanels';
 import { GlassLoadingCard } from './components/GlassLoadingCard';
@@ -60,16 +60,17 @@ export default function App() {
   // Theme & Appearance State
   const [themePreset, setThemePreset] = useState<ThemePreset>('auto');
   const [isDark, setIsDark] = useState<boolean>(true);
-  const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>(() => {
+  const [backgroundMode, setBackgroundMode] = useState<LiquidRendererMode>(() => {
     if (typeof window !== 'undefined') {
-      const stored = sessionStorage.getItem('resume_match_bg_mode') as BackgroundMode;
-      if (stored === 'video' || stored === 'procedural' || stored === 'static') {
-        return stored;
+      const stored = sessionStorage.getItem('resume_match_bg_mode');
+      if (stored === 'webgl' || stored === 'svg') {
+        return stored as LiquidRendererMode;
       }
     }
-    return 'video';
+    return 'webgl';
   });
   const [isBackgroundPaused, setIsBackgroundPaused] = useState<boolean>(false);
+  const [liquidIntensity, setLiquidIntensity] = useState<LiquidIntensityLevel>('normal');
 
   // Authentication state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -501,23 +502,35 @@ export default function App() {
 
   return (
     <div className="min-h-screen text-slate-100 flex flex-col font-sans relative selection:bg-indigo-500 selection:text-white bg-transparent">
-      {/* 1. Full-Screen Dynamic Water Background: position: fixed; inset: 0; z-index: 0 */}
-      <WaterBackground
+      {/* 1. Full-Screen Dynamic Glossy Liquid Background: position: fixed; inset: 0; z-index: 0 */}
+      <LiquidBackground
         isPaused={isBackgroundPaused}
         colors={activeThemeConfig}
         isDark={isDark}
+        isAnalyzing={isAnalyzing || isReanalyzing}
         hasAnalyzed={Boolean(analysisResult)}
         matchScore={analysisResult ? analysisResult.match_score : null}
         themePreset={themePreset}
+        intensity={liquidIntensity}
+        mode={backgroundMode === 'svg' ? 'svg' : 'webgl'}
+        onModeChange={(m) => {
+          setBackgroundMode(m);
+          sessionStorage.setItem('resume_match_bg_mode', m);
+        }}
       />
 
-      {/* 2. All App Content in wrapper at z-index: 1 or higher */}
-      <div className="relative z-10 flex flex-col min-h-screen bg-transparent">
+      {/* 2. All App Content in wrapper at z-index: 10 */}
+      <div
+        className="relative z-10 flex flex-col min-h-screen bg-transparent"
+        style={{ zIndex: 10, backgroundColor: 'transparent' }}
+      >
         {/* Sticky Glass Navbar */}
         <GlassNavbar
           currentTheme={themePreset}
           activeThemeConfig={activeThemeConfig}
           onSelectTheme={setThemePreset}
+          fluidIntensity={liquidIntensity}
+          onSelectFluidIntensity={setLiquidIntensity}
           backgroundMode={backgroundMode}
           onSelectBackgroundMode={(m) => {
             setBackgroundMode(m);
