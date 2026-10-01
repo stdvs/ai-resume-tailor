@@ -1,0 +1,8 @@
+{
+  "name": "Remix Resume Match AI",
+  "description": "AI-powered resume tailoring and ATS match analyzer to optimize resumes for specific job descriptions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

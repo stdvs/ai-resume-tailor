@@ -1,0 +1,388 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --accent: #6366f1;
+    --accent-2: #8b5cf6;
+    --glow: rgba(99, 102, 241, 0.35);
+    --blob-1: rgba(99, 102, 241, 0.45);
+    --blob-2: rgba(139, 92, 246, 0.40);
+    --blob-3: rgba(6, 182, 212, 0.35);
+    --blob-4: rgba(59, 130, 246, 0.30);
+    --bg-base: #0B1020;
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+
+    /* Water Theme CSS Variables */
+    --water-deep: #07162c;
+    --water-mid: #0e3a6c;
+    --water-surface: #0284c7;
+    --water-caustic: rgba(56, 189, 248, 0.45);
+    --water-shimmer: rgba(186, 230, 253, 0.65);
+    --water-glow: rgba(2, 132, 199, 0.40);
+    --water-border: rgba(255, 255, 255, 0.18);
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    overflow-x: hidden;
+  }
+}
+
+/* Glassmorphism Styles - Updated with 22px blur, 170% saturation, and dynamic water border/glow */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.075);
+  backdrop-filter: blur(22px) saturate(170%);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  border: 1px solid var(--water-border, rgba(255, 255, 255, 0.18));
+  border-radius: 22px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 16px -4px var(--glow), inset 0 1px 1px rgba(255, 255, 255, 0.22);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.3s ease,
+              box-shadow 0.3s ease,
+              background-color 0.25s ease;
+}
+
+.glass-panel:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.65), 0 0 26px -3px var(--glow), inset 0 1px 2px rgba(255, 255, 255, 0.35);
+}
+
+.glass-panel-static {
+  background: rgba(255, 255, 255, 0.075);
+  backdrop-filter: blur(22px) saturate(170%);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  border: 1px solid var(--water-border, rgba(255, 255, 255, 0.18));
+  border-radius: 22px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 16px -4px var(--glow), inset 0 1px 1px rgba(255, 255, 255, 0.22);
+}
+
+/* Idle Ocean Drift 40s Color Cycle Animation */
+@keyframes ocean-drift {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  25% {
+    /* Turquoise / Cyan */
+    filter: hue-rotate(50deg);
+  }
+  50% {
+    /* Teal */
+    filter: hue-rotate(95deg);
+  }
+  75% {
+    /* Violet / Purple */
+    filter: hue-rotate(240deg);
+  }
+  100% {
+    /* Back to Deep Blue */
+    filter: hue-rotate(360deg);
+  }
+}
+
+.animate-ocean-drift-40s {
+  animation: ocean-drift 40s linear infinite;
+  will-change: filter;
+}
+
+/* Smooth Wave Animations across screen */
+@keyframes wave-slide-1 {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-25%, 8px, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes wave-slide-2 {
+  0% {
+    transform: translate3d(-50%, 0, 0);
+  }
+  50% {
+    transform: translate3d(-25%, -10px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes wave-slide-3 {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-25%, -6px, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes wave-slide-4 {
+  0% {
+    transform: translate3d(-50%, 0, 0);
+  }
+  50% {
+    transform: translate3d(-25%, 7px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-wave-1 {
+  animation: wave-slide-1 34s cubic-bezier(0.42, 0.05, 0.58, 0.95) infinite;
+  will-change: transform;
+}
+
+.animate-wave-2 {
+  animation: wave-slide-2 26s cubic-bezier(0.42, 0.05, 0.58, 0.95) infinite;
+  will-change: transform;
+}
+
+.animate-wave-3 {
+  animation: wave-slide-3 19s cubic-bezier(0.42, 0.05, 0.58, 0.95) infinite;
+  will-change: transform;
+}
+
+.animate-wave-4 {
+  animation: wave-slide-4 13s cubic-bezier(0.42, 0.05, 0.58, 0.95) infinite;
+  will-change: transform;
+}
+
+/* Light Caustics and Refraction Shimmer */
+@keyframes caustics-shimmer-1 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    opacity: 0.30;
+  }
+  50% {
+    transform: translate3d(30px, -20px, 0) scale(1.08) rotate(3deg);
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    opacity: 0.30;
+  }
+}
+
+@keyframes caustics-shimmer-2 {
+  0% {
+    transform: translate3d(-20px, 15px, 0) scale(1.06) rotate(0deg);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translate3d(20px, -25px, 0) scale(0.95) rotate(-2.5deg);
+    opacity: 0.45;
+  }
+  100% {
+    transform: translate3d(-20px, 15px, 0) scale(1.06) rotate(0deg);
+    opacity: 0.25;
+  }
+}
+
+@keyframes sunlight-ray-drift {
+  0% {
+    transform: rotate(-12deg) translateY(0);
+    opacity: 0.22;
+  }
+  50% {
+    transform: rotate(-8deg) translateY(-15px);
+    opacity: 0.38;
+  }
+  100% {
+    transform: rotate(-12deg) translateY(0);
+    opacity: 0.22;
+  }
+}
+
+.animate-caustics-1 {
+  animation: caustics-shimmer-1 18s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.animate-caustics-2 {
+  animation: caustics-shimmer-2 24s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.animate-sunlight-rays {
+  animation: sunlight-ray-drift 16s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Slow-Rising Bubble Animations */
+@keyframes bubble-float-up {
+  0% {
+    transform: translate3d(0, 105vh, 0) scale(0.6);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.75;
+  }
+  50% {
+    transform: translate3d(var(--bubble-sway, 18px), 50vh, 0) scale(1);
+    opacity: 0.85;
+  }
+  85% {
+    opacity: 0.65;
+  }
+  100% {
+    transform: translate3d(calc(var(--bubble-sway, 18px) * -1), -10vh, 0) scale(1.15);
+    opacity: 0;
+  }
+}
+
+.animate-bubble-rise {
+  animation: bubble-float-up var(--bubble-duration, 18s) cubic-bezier(0.35, 0, 0.65, 1) infinite;
+  animation-delay: var(--bubble-delay, 0s);
+  will-change: transform, opacity;
+}
+
+/* Water Animation Pause Support */
+.water-motion-paused,
+.water-motion-paused * {
+  animation-play-state: paused !important;
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+
+.glass-input {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #F8FAFC;
+  transition: all 0.2s ease;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--glow), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Subtle realistic grain overlay */
+.noise-texture {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
+}
+
+/* Animated Floating Color Blobs */
+@keyframes blob-float-1 {
+  0% { transform: translate(0px, 0px) scale(1) rotate(0deg); }
+  33% { transform: translate(60px, -70px) scale(1.15) rotate(120deg); }
+  66% { transform: translate(-50px, 50px) scale(0.9) rotate(240deg); }
+  100% { transform: translate(0px, 0px) scale(1) rotate(360deg); }
+}
+
+@keyframes blob-float-2 {
+  0% { transform: translate(0px, 0px) scale(1) rotate(0deg); }
+  33% { transform: translate(-70px, 60px) scale(1.2) rotate(-120deg); }
+  66% { transform: translate(50px, -40px) scale(0.85) rotate(-240deg); }
+  100% { transform: translate(0px, 0px) scale(1) rotate(-360deg); }
+}
+
+@keyframes blob-float-3 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(80px, 60px) scale(1.1); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+@keyframes blob-float-4 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-60px, -50px) scale(1.15); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.animate-blob-1 {
+  animation: blob-float-1 24s ease-in-out infinite alternate;
+}
+
+.animate-blob-2 {
+  animation: blob-float-2 28s ease-in-out infinite alternate;
+}
+
+.animate-blob-3 {
+  animation: blob-float-3 22s ease-in-out infinite alternate;
+}
+
+.animate-blob-4 {
+  animation: blob-float-4 26s ease-in-out infinite alternate;
+}
+
+/* Shimmer Sweep Animation */
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-150%); }
+  100% { transform: translateX(250%); }
+}
+
+.shimmer-active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    transparent 100%
+  );
+  animation: shimmer-sweep 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+/* Stagger Animation */
+@keyframes fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-slide-up {
+  animation: fade-slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob-1,
+  .animate-blob-2,
+  .animate-blob-3,
+  .animate-blob-4,
+  .shimmer-active::after,
+  .animate-fade-slide-up,
+  .animate-ocean-drift-40s,
+  .animate-wave-1,
+  .animate-wave-2,
+  .animate-wave-3,
+  .animate-wave-4,
+  .animate-caustics-1,
+  .animate-caustics-2,
+  .animate-sunlight-rays,
+  .animate-bubble-rise {
+    animation: none !important;
+    transform: none !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}

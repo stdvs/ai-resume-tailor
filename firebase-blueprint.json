@@ -1,0 +1,77 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Basic user account profile stored in Firestore.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Display name of the user" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of account creation" }
+      },
+      "required": ["uid", "email"]
+    },
+    "AnalysisHistory": {
+      "title": "Resume Analysis History",
+      "description": "Saved past resume match analysis and ATS simulation report.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier of the saved analysis" },
+        "userId": { "type": "string", "description": "UID of the owning user" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of analysis" },
+        "jobTitle": { "type": "string", "description": "Target job title or label" },
+        "matchScore": { "type": "integer", "description": "Match score between 0 and 100" },
+        "scoreExplanation": { "type": "string", "description": "Recruiter score explanation" },
+        "matchingSkills": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Matching skills identified"
+        },
+        "missingKeywords": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Missing keywords"
+        },
+        "bulletsToRewrite": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "original": { "type": "string" },
+              "improved": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          },
+          "description": "Bullet rewrites"
+        },
+        "top5Changes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Top 5 changes"
+        },
+        "preApplyChecklist": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Checklist items"
+        },
+        "tailoredResumeText": { "type": "string", "description": "Tailored resume plain text" },
+        "atsSimulation": {
+          "type": "object",
+          "description": "ATS parser simulation report and warnings"
+        }
+      },
+      "required": ["id", "userId", "createdAt", "matchScore", "tailoredResumeText"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profile document"
+    },
+    "/users/{userId}/analyses/{analysisId}": {
+      "schema": { "$ref": "#/entities/AnalysisHistory" },
+      "description": "Private resume analysis history documents owned by the user"
+    }
+  }
+}
