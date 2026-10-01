@@ -36,6 +36,8 @@ interface GlassNavbarProps {
   onOpenAuth: () => void;
   onSignOut: () => void;
   user: User | null;
+  activeView?: 'dashboard' | 'builder';
+  onViewChange?: (view: 'dashboard' | 'builder') => void;
 }
 
 export const GlassNavbar: React.FC<GlassNavbarProps> = ({
@@ -53,6 +55,8 @@ export const GlassNavbar: React.FC<GlassNavbarProps> = ({
   onOpenAuth,
   onSignOut,
   user,
+  activeView = 'dashboard',
+  onViewChange,
 }) => {
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const themeMenuRef = useRef<HTMLDivElement>(null);
@@ -96,6 +100,35 @@ export const GlassNavbar: React.FC<GlassNavbarProps> = ({
             </p>
           </div>
         </div>
+
+        {/* Center: Mode Switcher (Match Dashboard vs Resume Builder) */}
+        {onViewChange && (
+          <div className="hidden lg:flex items-center p-1 rounded-xl bg-white/10 border border-white/15 shadow-inner">
+            <button
+              onClick={() => onViewChange('dashboard')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeView === 'dashboard'
+                  ? 'bg-white text-slate-900 shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Match & Analysis
+            </button>
+            <button
+              onClick={() => onViewChange('builder')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeView === 'builder'
+                  ? 'bg-gradient-to-r from-cyan-400 to-indigo-500 text-white shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <span>Resume Builder</span>
+              <span className="text-[9px] font-black uppercase px-1 py-0.2 rounded bg-amber-400 text-slate-950">
+                New
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-2.5">

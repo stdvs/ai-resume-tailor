@@ -51,6 +51,9 @@ import { GlassCoverLetterModal } from './components/GlassCoverLetterModal';
 import { SkillGapRadarChart } from './components/SkillGapRadarChart';
 import { AtsSimulationCard } from './components/AtsSimulationCard';
 import { LinkedInOptimizerCard } from './components/LinkedInOptimizerCard';
+import { ResumeBuilderView } from './components/ResumeBuilderView';
+import { DeepAnalysisCards } from './components/DeepAnalysisCards';
+import { FullReportView } from './components/FullReportView';
 import { AuthModal } from './components/AuthModal';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
@@ -98,8 +101,13 @@ export default function App() {
   // In-memory history for last 5 analyses
   const [memoryHistory, setMemoryHistory] = useState<UserHistoryItem[]>([]);
 
-  // Active result tab: 'all' | 'rewrites' | 'scanner' | 'studio' | 'ats_sim' | 'linkedin'
-  const [activeTab, setActiveTab] = useState<'all' | 'rewrites' | 'scanner' | 'studio' | 'ats_sim' | 'linkedin'>('all');
+  // Top-level navigation: 'dashboard' | 'builder'
+  const [activeView, setActiveView] = useState<'dashboard' | 'builder'>('dashboard');
+
+  // Active result tab: 'all' | 'builder' | 'full_report' | 'deep_engine' | 'studio' | 'scanner' | 'rewrites' | 'ats_sim' | 'linkedin'
+  const [activeTab, setActiveTab] = useState<
+    'all' | 'builder' | 'full_report' | 'deep_engine' | 'studio' | 'scanner' | 'rewrites' | 'ats_sim' | 'linkedin'
+  >('all');
 
   // Monitor auth status
   useEffect(() => {
@@ -545,111 +553,139 @@ export default function App() {
           onOpenAuth={() => setIsAuthModalOpen(true)}
           onSignOut={handleSignOut}
           user={currentUser}
+          activeView={activeView}
+          onViewChange={setActiveView}
         />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10 space-y-10">
-        {/* Input Panels Section */}
-        <GlassInputPanels
-          resumeMode={resumeMode}
-          setResumeMode={setResumeMode}
-          resumeText={resumeText}
-          setResumeText={setResumeText}
-          uploadedFile={uploadedFile}
-          onFileExtracted={handleFileExtracted}
-          onFileRemoved={handleFileRemoved}
-          isExtractingFile={isExtractingFile}
-          setIsExtractingFile={setIsExtractingFile}
-          jobDescription={jobDescription}
-          setJobDescription={setJobDescription}
-          onLoadSample={handleLoadSample}
-          onAnalyze={handleAnalyze}
-          isAnalyzing={isAnalyzing}
-          onError={setErrorMessage}
-        />
+        {activeView === 'builder' ? (
+          <ResumeBuilderView
+            initialResumeText={analysisResult?.tailored_resume_text || resumeText}
+            jobDescription={jobDescription}
+            onBackToDashboard={() => setActiveView('dashboard')}
+          />
+        ) : (
+          <>
+            {/* Input Panels Section */}
+            <GlassInputPanels
+              resumeMode={resumeMode}
+              setResumeMode={setResumeMode}
+              resumeText={resumeText}
+              setResumeText={setResumeText}
+              uploadedFile={uploadedFile}
+              onFileExtracted={handleFileExtracted}
+              onFileRemoved={handleFileRemoved}
+              isExtractingFile={isExtractingFile}
+              setIsExtractingFile={setIsExtractingFile}
+              jobDescription={jobDescription}
+              setJobDescription={setJobDescription}
+              onLoadSample={handleLoadSample}
+              onAnalyze={handleAnalyze}
+              isAnalyzing={isAnalyzing}
+              onError={setErrorMessage}
+            />
 
-        {/* Success message banner */}
-        {savedSuccessMsg && (
-          <div className="glass-panel p-4 bg-emerald-500/15 border-emerald-500/30 text-emerald-200 text-xs font-medium flex items-center justify-between animate-in fade-in duration-200">
-            <span className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              {savedSuccessMsg}
-            </span>
-            <button
-              onClick={() => setIsHistoryDrawerOpen(true)}
-              className="text-emerald-300 font-bold underline cursor-pointer"
-            >
-              Open History &rarr;
-            </button>
-          </div>
-        )}
-
-        {/* Error Alert Box */}
-        {errorMessage && (
-          <div className="glass-panel p-5 bg-rose-500/15 border-rose-500/30 text-rose-200 flex items-start gap-3.5 animate-in fade-in duration-200">
-            <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h4 className="text-sm font-bold text-white">Analysis Error</h4>
-              <p className="text-xs text-rose-200 mt-1 leading-relaxed">{errorMessage}</p>
-            </div>
-            <button
-              onClick={() => setErrorMessage(null)}
-              className="text-xs font-bold text-rose-300 hover:text-white px-2 py-1 rounded bg-rose-500/20 cursor-pointer"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {/* Glass Loading Card with rotating status messages */}
-        {isAnalyzing && <GlassLoadingCard />}
-
-        {/* 3. RESULTS DASHBOARD (Bento Grid of Glass Cards) */}
-        {analysisResult && !isAnalyzing && (
-          <section id="results-section" className="space-y-8 pt-2 animate-fade-slide-up">
-            {/* Results Filter & Navigation Controls */}
-            <div className="glass-panel p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white/90 uppercase tracking-wider pl-1">
-                  View Mode:
+            {/* Success message banner */}
+            {savedSuccessMsg && (
+              <div className="glass-panel p-4 bg-emerald-500/15 border-emerald-500/30 text-emerald-200 text-xs font-medium flex items-center justify-between animate-in fade-in duration-200">
+                <span className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  {savedSuccessMsg}
                 </span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {[
-                    { id: 'all', label: 'Bento Overview' },
-                    { id: 'studio', label: 'Tailored Resume' },
-                    { id: 'scanner', label: 'JD Keyword Map' },
-                    { id: 'rewrites', label: 'Bullet Rewrites' },
-                    { id: 'ats_sim', label: 'ATS Simulator' },
-                    { id: 'linkedin', label: 'LinkedIn Format' },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id as any)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        activeTab === tab.id
-                          ? 'bg-white text-slate-900 shadow-md'
-                          : 'bg-white/10 text-slate-300 hover:bg-white/15 hover:text-white'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
+                <button
+                  onClick={() => setIsHistoryDrawerOpen(true)}
+                  className="text-emerald-300 font-bold underline cursor-pointer"
+                >
+                  Open History &rarr;
+                </button>
               </div>
+            )}
 
-              {/* Cover Letter CTA Button */}
-              <button
-                onClick={() => setIsCoverLetterOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] self-start sm:self-auto"
-                style={{
-                  background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-                  boxShadow: '0 0 15px var(--glow)',
-                }}
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Generate Cover Letter</span>
-              </button>
-            </div>
+            {/* Error Alert Box */}
+            {errorMessage && (
+              <div className="glass-panel p-5 bg-rose-500/15 border-rose-500/30 text-rose-200 flex items-start gap-3.5 animate-in fade-in duration-200">
+                <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-white">Analysis Error</h4>
+                  <p className="text-xs text-rose-200 mt-1 leading-relaxed">{errorMessage}</p>
+                </div>
+                <button
+                  onClick={() => setErrorMessage(null)}
+                  className="text-xs font-bold text-rose-300 hover:text-white px-2 py-1 rounded bg-rose-500/20 cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* Glass Loading Card with rotating status messages */}
+            {isAnalyzing && <GlassLoadingCard />}
+
+            {/* 3. RESULTS DASHBOARD (Bento Grid of Glass Cards) */}
+            {analysisResult && !isAnalyzing && (
+              <section id="results-section" className="space-y-8 pt-2 animate-fade-slide-up">
+                {/* Results Filter & Navigation Controls */}
+                <div className="glass-panel p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-white/90 uppercase tracking-wider pl-1">
+                      View Mode:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {[
+                        { id: 'all', label: 'Bento Overview' },
+                        { id: 'deep_engine', label: 'Deep ATS Audit (10-Checks)' },
+                        { id: 'full_report', label: 'Full Report & PDF' },
+                        { id: 'builder', label: 'Resume Builder' },
+                        { id: 'studio', label: 'Tailored Resume' },
+                        { id: 'scanner', label: 'JD Keyword Map' },
+                        { id: 'rewrites', label: 'Bullet Rewrites' },
+                        { id: 'ats_sim', label: 'ATS Simulator' },
+                        { id: 'linkedin', label: 'LinkedIn Format' },
+                      ].map((tab) => (
+                        <button
+                          key={tab.id}
+                          onClick={() => {
+                            if (tab.id === 'builder') {
+                              setActiveView('builder');
+                            } else {
+                              setActiveTab(tab.id as any);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            activeTab === tab.id
+                              ? 'bg-white text-slate-900 shadow-md'
+                              : 'bg-white/10 text-slate-300 hover:bg-white/15 hover:text-white'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Header CTA Buttons: Builder + Cover Letter */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => setActiveView('builder')}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] border border-white/20 bg-gradient-to-r from-cyan-500/80 to-indigo-600/80 hover:from-cyan-500 hover:to-indigo-600"
+                    >
+                      <Sliders className="w-3.5 h-3.5 text-cyan-200" />
+                      <span>Resume Builder</span>
+                    </button>
+                    <button
+                      onClick={() => setIsCoverLetterOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+                        boxShadow: '0 0 15px var(--glow)',
+                      }}
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Generate Cover Letter</span>
+                    </button>
+                  </div>
+                </div>
 
             {/* TAB: BENTO OVERVIEW */}
             {activeTab === 'all' && (
@@ -723,7 +759,49 @@ export default function App() {
                   }
                   tailoredResumeText={analysisResult.tailored_resume_text}
                 />
+
+                {/* Row 10: Deep Analysis 10-Check Engine Bento Card */}
+                <div className="space-y-4 pt-4 border-t border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-cyan-400" />
+                        <span>10-Point Deep ATS & Recruiter Quality Audit</span>
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Exhaustive ATS formatting checks, keyword density map, weak verbs, metrics, red flags, and skill roadmap
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('deep_engine')}
+                      className="text-xs font-bold text-cyan-300 hover:text-white underline cursor-pointer"
+                    >
+                      Focus View &rarr;
+                    </button>
+                  </div>
+                  <DeepAnalysisCards
+                    analysisResult={analysisResult}
+                    onOpenBuilder={() => setActiveView('builder')}
+                  />
+                </div>
               </div>
+            )}
+
+            {/* TAB: DEEP ATS AUDIT (10 CHECKS) */}
+            {activeTab === 'deep_engine' && (
+              <DeepAnalysisCards
+                analysisResult={analysisResult}
+                onOpenBuilder={() => setActiveView('builder')}
+              />
+            )}
+
+            {/* TAB: FULL REPORT & PDF */}
+            {activeTab === 'full_report' && (
+              <FullReportView
+                analysisResult={analysisResult}
+                jobDescription={jobDescription}
+                onOpenBuilder={() => setActiveView('builder')}
+              />
             )}
 
             {/* TAB: TAILORED RESUME STUDIO */}
@@ -784,7 +862,9 @@ export default function App() {
             )}
           </section>
         )}
-      </main>
+      </>
+    )}
+  </main>
 
       {/* 5. Modals & Drawers */}
       <GlassCoverLetterModal

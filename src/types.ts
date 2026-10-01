@@ -125,7 +125,8 @@ export interface SectionCompletenessItem {
 }
 
 export interface SectionCompletenessReport {
-  overall_completeness_score: number; // 0 - 100
+  overall_completeness_score?: number; // 0 - 100
+  overall_score?: number; // 0 - 100 alias
   sections: SectionCompletenessItem[];
   summary: string;
 }
@@ -273,3 +274,208 @@ export interface ThemeConfig {
   blob3: string;
   badge: string;
 }
+
+// -------------------------------------------------------------
+// RESUME BUILDER & EXPORT SYSTEM TYPES
+// -------------------------------------------------------------
+
+export type BuilderTemplateId = 'classic' | 'modern' | 'minimal' | 'sidebar' | 'compact';
+export type BuilderFontFamily = 'inter' | 'roboto' | 'merriweather' | 'playfair' | 'fira' | 'jetbrains' | 'poppins';
+
+export interface ResumeContactInfo {
+  fullName: string;
+  jobTitle: string;
+  email: string;
+  phone: string;
+  location: string;
+  website: string;
+  linkedin: string;
+  github: string;
+}
+
+export interface ResumeSkillCategory {
+  id: string;
+  categoryName: string;
+  skills: string[];
+}
+
+export interface ResumeExperienceItem {
+  id: string;
+  role: string;
+  company: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  current: boolean;
+  bullets: string[];
+}
+
+export interface ResumeEducationItem {
+  id: string;
+  degree: string;
+  field: string;
+  school: string;
+  location: string;
+  graduationDate: string;
+  gpaOrHonors?: string;
+  bullets?: string[];
+}
+
+export interface ResumeProjectItem {
+  id: string;
+  title: string;
+  techStack: string;
+  link: string;
+  bullets: string[];
+}
+
+export interface ResumeCertificationItem {
+  id: string;
+  name: string;
+  issuer: string;
+  date: string;
+  url?: string;
+}
+
+export interface ResumeAchievementItem {
+  id: string;
+  title: string;
+  date?: string;
+  description: string;
+}
+
+export interface ResumeLanguageItem {
+  id: string;
+  language: string;
+  proficiency: string;
+}
+
+export interface ResumeBuilderData {
+  contact: ResumeContactInfo;
+  summary: string;
+  skillCategories: ResumeSkillCategory[];
+  experience: ResumeExperienceItem[];
+  education: ResumeEducationItem[];
+  projects: ResumeProjectItem[];
+  certifications: ResumeCertificationItem[];
+  achievements: ResumeAchievementItem[];
+  languages: ResumeLanguageItem[];
+  sectionOrder?: string[];
+}
+
+export interface ResumeVersion {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt?: string;
+  data: ResumeBuilderData;
+  templateId: BuilderTemplateId;
+  accentColor: string;
+  fontFamily: BuilderFontFamily;
+}
+
+// -------------------------------------------------------------
+// JOB SEARCH TOOLS TYPES
+// -------------------------------------------------------------
+
+export type JobTrackerStatus = 'saved' | 'applied' | 'interview' | 'offer' | 'rejected';
+
+export interface JobTrackerCard {
+  id: string;
+  company: string;
+  role: string;
+  link?: string;
+  dateAdded: string;
+  status: JobTrackerStatus;
+  matchScore?: number;
+  notes?: string;
+  resumeVersionUsed?: string;
+  followUpDate?: string; // YYYY-MM-DD
+  salary?: string;
+  location?: string;
+}
+
+export interface MultiJobInputItem {
+  id: string;
+  jobTitle: string;
+  company: string;
+  description: string;
+}
+
+export interface MultiJobComparisonItem {
+  id: string;
+  jobTitle: string;
+  company: string;
+  matchScore: number;
+  matchingKeywords: string[];
+  missingKeywords: string[];
+  fitRank: number;
+  verdict: string;
+  pros: string[];
+  risks: string[];
+}
+
+export interface MultiJobComparisonReport {
+  comparedJobs: MultiJobComparisonItem[];
+  recommendation: {
+    applyFirstJobId: string;
+    applyFirstTitle: string;
+    applyFirstCompany: string;
+    primaryReason: string;
+    strategicActionPlan: string[];
+  };
+}
+
+export type CoverLetterTone = 'Professional' | 'Confident' | 'Friendly' | 'Concise';
+export type CoverLetterLength = 'concise' | 'standard' | 'detailed';
+
+export interface EmailMessageTemplates {
+  coldOutreach: string;
+  linkedInNote: string;
+  recruiterMessage: string;
+  applicationFollowUp: string;
+  thankYouEmail: string;
+  salaryNegotiation: string;
+}
+
+export interface LinkedInOptimizationData {
+  headlineOptions: string[];
+  improvedAbout: string;
+  coreKeywords: string[];
+  skillsToHighlight: string[];
+  profileTips: string[];
+}
+
+export interface TechnicalQuestionItem {
+  question: string;
+  category: string;
+  expectedTopics: string[];
+  sampleApproach: string;
+}
+
+export interface BehavioralQuestionItem {
+  question: string;
+  competency: string;
+  starOutline: {
+    situation: string;
+    task: string;
+    action: string;
+    result: string;
+  };
+}
+
+export interface InterviewPrepPackage {
+  elevatorPitch: string;
+  technicalQuestions: TechnicalQuestionItem[];
+  behavioralQuestions: BehavioralQuestionItem[];
+}
+
+export interface MockAnswerFeedback {
+  score: number; // 0-100
+  verdict: 'Excellent' | 'Strong' | 'Needs Improvement' | 'Weak';
+  strengths: string[];
+  missedElements: string[];
+  coachingTip: string;
+  enhancedAnswer: string;
+}
+

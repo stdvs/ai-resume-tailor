@@ -691,6 +691,440 @@ Evaluate the resume for parsing compliance, date formatting consistency, section
     }
   });
 
+  // Resume Builder: Import resume text into structured JSON format
+  app.post('/api/builder/import-resume', async (req, res): Promise<any> => {
+    try {
+      const { resumeText } = req.body;
+      if (!resumeText || !resumeText.trim()) {
+        return res.status(400).json({ error: 'Resume text is required to import.' });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: 'Gemini API key is not configured.' });
+      }
+
+      const prompt = `Parse and extract this candidate's resume into structured JSON for a resume builder.
+STRICT RULE: Never invent, assume, or hallucinate companies, degrees, dates, metrics, or achievements. Only extract and categorize the genuine information explicitly present in the resume text.
+
+=== RESUME TEXT ===
+${resumeText.trim()}`;
+
+      const response = await generateContentWithRetry({
+        model: 'gemini-3.1-flash-lite',
+        contents: prompt,
+        config: {
+          systemInstruction: `You are a precision resume parser. Parse raw resume text into structured sections.
+Strict rule: Never invent experience, metrics, dates, companies, or skills. If a field is not found in the resume, leave it as an empty string or empty array.`,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              contact: {
+                type: Type.OBJECT,
+                properties: {
+                  fullName: { type: Type.STRING },
+                  jobTitle: { type: Type.STRING },
+                  email: { type: Type.STRING },
+                  phone: { type: Type.STRING },
+                  location: { type: Type.STRING },
+                  website: { type: Type.STRING },
+                  linkedin: { type: Type.STRING },
+                  github: { type: Type.STRING },
+                },
+                required: ['fullName', 'email'],
+              },
+              summary: { type: Type.STRING },
+              skillCategories: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    categoryName: { type: Type.STRING },
+                    skills: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  },
+                  required: ['categoryName', 'skills'],
+                },
+              },
+              experience: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    role: { type: Type.STRING },
+                    company: { type: Type.STRING },
+                    location: { type: Type.STRING },
+                    startDate: { type: Type.STRING },
+                    endDate: { type: Type.STRING },
+                    current: { type: Type.BOOLEAN },
+                    bullets: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  },
+                  required: ['role', 'company', 'bullets'],
+                },
+              },
+              education: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    degree: { type: Type.STRING },
+                    field: { type: Type.STRING },
+                    school: { type: Type.STRING },
+                    location: { type: Type.STRING },
+                    graduationDate: { type: Type.STRING },
+                    gpaOrHonors: { type: Type.STRING },
+                    bullets: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  },
+                  required: ['degree', 'school'],
+                },
+              },
+              projects: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    techStack: { type: Type.STRING },
+                    link: { type: Type.STRING },
+                    bullets: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  },
+                  required: ['title', 'bullets'],
+                },
+              },
+              certifications: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    issuer: { type: Type.STRING },
+                    date: { type: Type.STRING },
+                    url: { type: Type.STRING },
+                  },
+                  required: ['name'],
+                },
+              },
+              achievements: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    date: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                  },
+                  required: ['title', 'description'],
+                },
+              },
+              languages: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    language: { type: Type.STRING },
+                    proficiency: { type: Type.STRING },
+                  },
+                  required: ['language'],
+                },
+              },
+            },
+            required: ['contact', 'summary', 'skillCategories', 'experience', 'education'],
+          },
+        },
+      });
+
+      const raw = response.text;
+      if (!raw) throw new Error('Empty response from AI resume parser.');
+      const parsed = JSON.parse(raw.trim());
+
+      // Assign stable IDs to items for easy drag-and-drop & editing
+      if (Array.isArray(parsed.skillCategories)) {
+        parsed.skillCategories = parsed.skillCategories.map((c: any, i: number) => ({
+          id: `cat_${Date.now()}_${i}`,
+          categoryName: c.categoryName || 'Skills',
+          skills: Array.isArray(c.skills) ? c.skills : [],
+        }));
+      } else {
+        parsed.skillCategories = [];
+      }
+
+      if (Array.isArray(parsed.experience)) {
+        parsed.experience = parsed.experience.map((e: any, i: number) => ({
+          id: `exp_${Date.now()}_${i}`,
+          role: e.role || '',
+          company: e.company || '',
+          location: e.location || '',
+          startDate: e.startDate || '',
+          endDate: e.endDate || '',
+          current: Boolean(e.current),
+          bullets: Array.isArray(e.bullets) ? e.bullets : [],
+        }));
+      } else {
+        parsed.experience = [];
+      }
+
+      if (Array.isArray(parsed.education)) {
+        parsed.education = parsed.education.map((ed: any, i: number) => ({
+          id: `edu_${Date.now()}_${i}`,
+          degree: ed.degree || '',
+          field: ed.field || '',
+          school: ed.school || '',
+          location: ed.location || '',
+          graduationDate: ed.graduationDate || '',
+          gpaOrHonors: ed.gpaOrHonors || '',
+          bullets: Array.isArray(ed.bullets) ? ed.bullets : [],
+        }));
+      } else {
+        parsed.education = [];
+      }
+
+      if (Array.isArray(parsed.projects)) {
+        parsed.projects = parsed.projects.map((p: any, i: number) => ({
+          id: `proj_${Date.now()}_${i}`,
+          title: p.title || '',
+          techStack: p.techStack || '',
+          link: p.link || '',
+          bullets: Array.isArray(p.bullets) ? p.bullets : [],
+        }));
+      } else {
+        parsed.projects = [];
+      }
+
+      if (Array.isArray(parsed.certifications)) {
+        parsed.certifications = parsed.certifications.map((c: any, i: number) => ({
+          id: `cert_${Date.now()}_${i}`,
+          name: c.name || '',
+          issuer: c.issuer || '',
+          date: c.date || '',
+          url: c.url || '',
+        }));
+      } else {
+        parsed.certifications = [];
+      }
+
+      if (Array.isArray(parsed.achievements)) {
+        parsed.achievements = parsed.achievements.map((a: any, i: number) => ({
+          id: `ach_${Date.now()}_${i}`,
+          title: a.title || '',
+          date: a.date || '',
+          description: a.description || '',
+        }));
+      } else {
+        parsed.achievements = [];
+      }
+
+      if (Array.isArray(parsed.languages)) {
+        parsed.languages = parsed.languages.map((l: any, i: number) => ({
+          id: `lang_${Date.now()}_${i}`,
+          language: l.language || '',
+          proficiency: l.proficiency || 'Proficient',
+        }));
+      } else {
+        parsed.languages = [];
+      }
+
+      parsed.sectionOrder = [
+        'summary',
+        'skills',
+        'experience',
+        'projects',
+        'education',
+        'certifications',
+        'achievements',
+        'languages',
+      ];
+
+      return res.json({
+        success: true,
+        data: parsed,
+      });
+    } catch (err: any) {
+      console.error('Builder import error:', err);
+      return res.status(500).json({
+        error: `Failed to import resume structure: ${err.message || 'Unknown error'}`,
+      });
+    }
+  });
+
+  // Resume Builder: AI Writing Tools (Improve, Add action verb, Shorten, Make impactful, Tailor, Generate summary)
+  app.post('/api/builder/ai-assist', async (req, res): Promise<any> => {
+    try {
+      const { action, text, jobDescription, context } = req.body;
+
+      if (!action) {
+        return res.status(400).json({ error: 'Action parameter is required.' });
+      }
+
+      if (!text && action !== 'generate_summary') {
+        return res.status(400).json({ error: 'Input text is required for this action.' });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: 'Gemini API key is not configured.' });
+      }
+
+      let actionInstruction = '';
+      if (action === 'improve') {
+        actionInstruction = `Improve this resume bullet point to make it compelling, clear, and professional. Rephrase for maximum recruiter impact without changing the underlying factual experience.`;
+      } else if (action === 'add_action_verb') {
+        actionInstruction = `Start this bullet point with a high-impact, dynamic action verb (such as Architected, Spearheaded, Accelerated, Engineered, Streamlined, Orchestrated). Avoid passive phrasing.`;
+      } else if (action === 'shorten') {
+        actionInstruction = `Shorten this bullet point to under 20 words by eliminating filler words and unnecessary jargon, keeping only the high-impact core achievement.`;
+      } else if (action === 'make_impactful') {
+        actionInstruction = `Rewrite this bullet point to follow the Google XYZ format: Accomplished [X] as measured by [add metric] by doing [Z]. Where specific numbers are missing, strictly use "[add metric]" as a placeholder. NEVER invent fake numbers.`;
+      } else if (action === 'tailor') {
+        actionInstruction = `Tailor this bullet point to align with relevant keywords and skills from the targeted job description: "${jobDescription || ''}". Strictly maintain genuine candidate experience without inventing skills.`;
+      } else if (action === 'generate_summary') {
+        actionInstruction = `Write a high-impact, professional 3-4 sentence resume summary based on candidate context: "${context || text || ''}" targeting job description: "${jobDescription || ''}". Never fabricate employers, degrees, or metrics. Highlight core domain strengths and value proposition.`;
+      } else {
+        return res.status(400).json({ error: `Unsupported AI action: ${action}` });
+      }
+
+      const prompt = `${actionInstruction}
+
+=== CURRENT TEXT ===
+${(text || '').trim()}
+
+${jobDescription ? `=== TARGET JOB DESCRIPTION ===\n${jobDescription.trim()}` : ''}
+
+Strict rule: Never invent experience, metrics, companies, skills, or dates. Only rephrase or restructure what exists, and use "[add metric]" where numbers are absent.`;
+
+      const response = await generateContentWithRetry({
+        model: 'gemini-3.1-flash-lite',
+        contents: prompt,
+        config: {
+          systemInstruction: 'You are an executive resume writer. Strictly never invent metrics or experience. Rephrase and optimize genuine candidate statements with precision.',
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              suggestion: {
+                type: Type.STRING,
+                description: 'The rewritten, optimized text.',
+              },
+              reason: {
+                type: Type.STRING,
+                description: 'Brief explanation of why this change improves ATS parseability and recruiter interest.',
+              },
+              action_verb_used: {
+                type: Type.STRING,
+                description: 'The primary action verb used in the rewrite.',
+              },
+            },
+            required: ['suggestion', 'reason'],
+          },
+        },
+      });
+
+      const raw = response.text;
+      if (!raw) throw new Error('Empty response from AI assistant.');
+      const parsed = JSON.parse(raw.trim());
+
+      return res.json({
+        success: true,
+        data: parsed,
+      });
+    } catch (err: any) {
+      console.error('Builder AI assist error:', err);
+      return res.status(500).json({
+        error: `AI assist error: ${err.message || 'Unknown error'}`,
+      });
+    }
+  });
+
+  // Resume Builder: AI Smart Populate - Generate industry-standard bullet points based on job title or project
+  app.post('/api/builder/smart-populate', async (req, res): Promise<any> => {
+    try {
+      const { jobTitle, jobDescription, itemType = 'role' } = req.body;
+
+      if (!jobTitle || typeof jobTitle !== 'string' || !jobTitle.trim()) {
+        return res.status(400).json({ error: 'Job title or project role is required.' });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: 'Gemini API key is not configured.' });
+      }
+
+      const prompt = `Generate a comprehensive collection of 10 to 14 industry-standard, high-impact resume achievement bullet points for a candidate with the ${itemType === 'project' ? 'project / technical specialization' : 'job title / professional role'}: "${jobTitle.trim()}".
+
+${jobDescription ? `Context from target job description:\n${jobDescription.trim()}\n` : ''}
+
+Strict Rules:
+1. Every bullet must start with an authoritative past-tense action verb (e.g. Architected, Engineered, Spearheaded, Accelerated, Automated, Streamlined, Orchestrated).
+2. Follow Google XYZ format: Accomplished [X] as measured by [Y] by doing [Z].
+3. STRICT ANTI-HALLUCINATION RULE: Never invent fake numbers or claims. Strictly use "[add metric]" or "[add metric]%" as placeholders where numbers and metrics belong.
+4. Categorize the bullets into logical groups (e.g., "Core Engineering & Delivery", "Performance & Optimization", "System Architecture & Scalability", "Leadership & Cross-Functional Impact").
+5. Assign a concise impactFocus tag to each bullet (e.g., "Performance", "Efficiency", "Architecture", "Quality", "Scalability").`;
+
+      const response = await generateContentWithRetry({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          systemInstruction: 'You are an executive technical recruiter and career coach. Generate industry-standard, high-impact resume bullet points with strong action verbs and [add metric] placeholders. Strictly never fabricate numbers.',
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              jobTitle: { type: Type.STRING },
+              categories: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    categoryName: { type: Type.STRING },
+                    bullets: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          id: { type: Type.STRING },
+                          text: { type: Type.STRING },
+                          actionVerb: { type: Type.STRING },
+                          impactFocus: { type: Type.STRING },
+                        },
+                        required: ['id', 'text', 'actionVerb'],
+                      },
+                    },
+                  },
+                  required: ['categoryName', 'bullets'],
+                },
+              },
+            },
+            required: ['jobTitle', 'categories'],
+          },
+        },
+      });
+
+      const raw = response.text;
+      if (!raw) throw new Error('Empty response from AI smart populate.');
+      const parsed = JSON.parse(raw.trim());
+
+      // Ensure stable IDs for bullets
+      if (Array.isArray(parsed.categories)) {
+        parsed.categories = parsed.categories.map((cat: any, cIdx: number) => ({
+          ...cat,
+          bullets: Array.isArray(cat.bullets)
+            ? cat.bullets.map((b: any, bIdx: number) => ({
+                id: b.id || `sp_${Date.now()}_${cIdx}_${bIdx}`,
+                text: b.text || '',
+                actionVerb: b.actionVerb || (b.text ? b.text.split(' ')[0] : 'Executed'),
+                impactFocus: b.impactFocus || 'Impact',
+              }))
+            : [],
+        }));
+      }
+
+      return res.json({
+        success: true,
+        data: parsed,
+      });
+    } catch (err: any) {
+      console.error('Smart populate error:', err);
+      return res.status(500).json({
+        error: `Failed to generate smart bullets: ${err.message || 'Unknown error'}`,
+      });
+    }
+  });
+
   // Serve static files in production or hook Vite in development
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.resolve(__dirname, 'dist')));
