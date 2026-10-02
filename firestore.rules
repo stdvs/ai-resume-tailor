@@ -20,6 +20,12 @@ service cloud.firestore {
       }
     }
 
+    // Allow connection test ping
+    match /_connection_test/{testId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Default deny all other paths
     match /{document=**} {
       allow read, write: if false;

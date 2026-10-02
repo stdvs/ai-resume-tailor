@@ -24,6 +24,8 @@ import {
   db,
   doc,
   setDoc,
+  getDoc,
+  updateProfile,
   collection,
   User,
 } from './lib/firebase';
@@ -109,9 +111,22 @@ export default function App() {
     'all' | 'builder' | 'full_report' | 'deep_engine' | 'studio' | 'scanner' | 'rewrites' | 'ats_sim' | 'linkedin'
   >('all');
 
-  // Monitor auth status
+  // Monitor auth status and synchronize user profile
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user && !user.displayName) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists() && userDoc.data().displayName) {
+            await updateProfile(user, { displayName: userDoc.data().displayName });
+            await user.reload();
+            setCurrentUser(auth.currentUser || user);
+            return;
+          }
+        } catch (syncErr) {
+          console.warn('Could not read user profile from Firestore:', syncErr);
+        }
+      }
       setCurrentUser(user);
     });
     return () => unsubscribe();

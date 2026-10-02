@@ -8,6 +8,10 @@ import {
   signOut,
   updateProfile,
   onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence,
   User,
 } from 'firebase/auth';
 import {
@@ -31,6 +35,15 @@ const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 // Initialize Firebase Auth
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+// Ensure robust session persistence (browserLocalPersistence with graceful session fallback)
+if (typeof window !== 'undefined') {
+  setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.warn('Could not establish browserLocalPersistence, using session persistence:', err);
+    setPersistence(auth, browserSessionPersistence).catch(() => {});
+  });
+}
 
 // Initialize Firestore with specific databaseId if provided
 export const db = firebaseConfig.firestoreDatabaseId
@@ -57,6 +70,10 @@ export {
   signOut,
   updateProfile,
   onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence,
   doc,
   setDoc,
   getDoc,

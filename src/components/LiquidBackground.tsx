@@ -2,14 +2,14 @@ import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { ThemePreset, ThemeConfig } from '../types';
 
 // =========================================================================
-// LIQUID CONFIGURATION: Tweak Blob Count, River Speed, and Gloss Strength
+// LIQUID CONFIGURATION: Tweak River Flow Speed, Swirl, and Gloss Strength
 // =========================================================================
 export const LIQUID_CONFIG = {
-  blobCount: 6,        // <-- CHANGE BLOB COUNT HERE (5 to 7 blobs)
-  baseSpeed: 0.92,     // <-- CHANGE RIVER FLOW SPEED HERE (Higher = faster stream flow)
-  glossStrength: 1.85, // <-- CHANGE GLOSS / SPECULAR SHINE STRENGTH HERE (0.5 to 3.0)
-  wobbleAmount: 0.09,  // <-- CHANGE ORGANIC NOISE WOBBLE HERE (0.0 = smooth circles)
-  sminK: 0.36,         // <-- CHANGE METABALL SMOOTH UNION MERGE RADIUS HERE
+  baseSpeed: 0.95,      // <-- CHANGE FLOW SPEED HERE (Higher = faster river current)
+  swirlStrength: 1.25,  // <-- CHANGE SWIRL & EDDY STRENGTH HERE (Domain warp turbulence)
+  glossStrength: 1.95,  // <-- CHANGE GLOSS / SPECULAR SHINE STRENGTH HERE (0.5 to 3.0)
+  paletteShiftPeriod: 30.0, // <-- CHANGE PALETTE CYCLE TIME IN SECONDS HERE (~30s loop)
+  wobbleAmount: 0.08,   // <-- CHANGE ORGANIC NOISE WOBBLE HERE
 };
 
 export type LiquidRendererMode = 'webgl' | 'svg';
@@ -35,93 +35,61 @@ export interface LiquidBackgroundProps {
 
 export type WaterBackgroundProps = LiquidBackgroundProps;
 
-// Idle 25-second continuous liquid color loop:
-// deep blue → turquoise → teal → violet → deep blue
+// Idle continuous color reference loop
 interface LiquidColorKeyframe {
   pct: number;
   name: string;
-  c1: [number, number, number]; // Deep base
-  c2: [number, number, number]; // Mid fluid body
-  c3: [number, number, number]; // Surface / rim accent
+  c1: [number, number, number];
+  c2: [number, number, number];
+  c3: [number, number, number];
 }
 
-const LIQUID_25S_LOOP: LiquidColorKeyframe[] = [
-  {
-    pct: 0.0,
-    name: 'deep sapphire',
-    c1: [4, 28, 75],        // #041c4b
-    c2: [14, 95, 215],      // #0e5fd7
-    c3: [34, 185, 255],     // #22b9ff
-  },
-  {
-    pct: 0.25,
-    name: 'turquoise river',
-    c1: [3, 50, 72],        // #033248
-    c2: [10, 165, 205],     // #0aa5cd
-    c3: [8, 220, 245],      // #08dcf5
-  },
-  {
-    pct: 0.50,
-    name: 'teal cascade',
-    c1: [3, 52, 48],        // #033430
-    c2: [16, 175, 160],     // #10afa0
-    c3: [35, 225, 200],     // #23e1c8
-  },
-  {
-    pct: 0.75,
-    name: 'violet current',
-    c1: [38, 12, 75],       // #260c4b
-    c2: [140, 68, 255],     // #8c44ff
-    c3: [195, 115, 255],    // #c373ff
-  },
-  {
-    pct: 1.0,
-    name: 'deep sapphire',
-    c1: [4, 28, 75],        // #041c4b
-    c2: [14, 95, 215],      // #0e5fd7
-    c3: [34, 185, 255],     // #22b9ff
-  },
+const LIQUID_SPECTRUM_LOOP: LiquidColorKeyframe[] = [
+  { pct: 0.0,  name: 'full spectrum',  c1: [180, 20, 160], c2: [20, 110, 240], c3: [30, 220, 255] },
+  { pct: 0.25, name: 'cyan sapphire',  c1: [10, 50, 140],  c2: [15, 175, 235], c3: [40, 245, 210] },
+  { pct: 0.50, name: 'emerald lagoon', c1: [10, 90, 80],   c2: [30, 195, 140], c3: [240, 230, 60] },
+  { pct: 0.75, name: 'sunset river',   c1: [140, 20, 60],  c2: [240, 95, 40],  c3: [255, 195, 50] },
+  { pct: 1.0,  name: 'full spectrum',  c1: [180, 20, 160], c2: [20, 110, 240], c3: [30, 220, 255] },
 ];
 
 // =========================================================================
 // AMBIENT LIGHT THEME PROFILES
-// Defines the ambient light tint and breathing pulse rhythm tailored to each preset
 // =========================================================================
 interface AmbientLightProfile {
   name: string;
-  tint: [number, number, number]; // RGB 0..255
-  frequency: number;              // speed of the breathing pulse
-  calcPulse: (time: number) => number; // 0..1 smooth pulse factor
+  tint: [number, number, number];
+  frequency: number;
+  calcPulse: (time: number) => number;
 }
 
 export const THEME_AMBIENT_PROFILES: Record<ThemePreset, AmbientLightProfile> = {
   auto: {
-    name: 'Celestial Glow',
-    tint: [40, 175, 255], // Celestial Cyan
+    name: 'Prismatic Aurora',
+    tint: [60, 200, 255],
     frequency: 1.25,
     calcPulse: (t) => 0.5 + 0.5 * Math.sin(t * 1.25),
   },
   aurora: {
-    name: 'Borealis Shimmer',
-    tint: [110, 245, 190], // Emerald Borealis
+    name: 'Borealis Emerald',
+    tint: [90, 250, 190],
     frequency: 1.65,
     calcPulse: (t) => 0.5 + 0.35 * Math.sin(t * 1.65) + 0.15 * Math.cos(t * 3.3),
   },
   sunset: {
-    name: 'Hearth Ember',
-    tint: [255, 145, 65], // Golden Amber Ember
+    name: 'Hearth Amber',
+    tint: [255, 145, 65],
     frequency: 1.45,
     calcPulse: (t) => Math.pow(Math.sin(t * 1.45) * 0.5 + 0.5, 1.6),
   },
   ocean: {
-    name: 'Abyssal Swell',
-    tint: [30, 185, 245], // Deep Oceanic Aqua
+    name: 'Abyssal Sapphire',
+    tint: [30, 185, 245],
     frequency: 1.05,
     calcPulse: (t) => 0.5 + 0.5 * Math.sin(t * 1.05),
   },
   forest: {
     name: 'Canopy Bioluminescence',
-    tint: [85, 240, 80], // Emerald Lime Canopy
+    tint: [85, 240, 80],
     frequency: 1.35,
     calcPulse: (t) => 0.5 + 0.38 * Math.sin(t * 1.35) + 0.12 * Math.sin(t * 2.7 + 0.8),
   },
@@ -140,7 +108,7 @@ function lerpRGB(c1: [number, number, number], c2: [number, number, number], t: 
 }
 
 // =========================================================================
-// WEBGL SHADER SOURCES: SERPENTINE GLOSSY RIVER FLOW & METABALL FIELD
+// WEBGL SHADER SOURCES: GLOSSY MULTICOLOUR LIQUID RIVER FLOW
 // =========================================================================
 const VERTEX_SHADER_SRC = `
 attribute vec2 a_position;
@@ -159,11 +127,12 @@ uniform vec2 u_resolution;
 uniform float u_time;
 uniform vec2 u_mouse;
 uniform float u_mouse_active;
-uniform vec3 u_color1; // Deep base liquid color
-uniform vec3 u_color2; // Mid liquid body color
-uniform vec3 u_color3; // Surface / rim accent color
+uniform vec3 u_color1;       // Deep theme base
+uniform vec3 u_color2;       // Mid theme body
+uniform vec3 u_color3;       // Surface theme accent
+uniform float u_theme_bias;  // 0.0 = full spectrum rainbow, 1.0 = theme/score biased
 uniform float u_gloss_strength;
-uniform float u_wobble_strength;
+uniform float u_swirl_strength;
 uniform float u_splash_pulse;
 uniform float u_thinking_pulse;
 
@@ -172,292 +141,201 @@ uniform float u_ambient_pulse;
 uniform vec3 u_ambient_tint;
 uniform float u_ambient_intensity;
 
-// --- CONFIGURATION CONSTANTS ---
-#define NUM_BLOBS 6
+// --- RIVER FLOW VECTOR MATH ---
+// Primary downstream current direction: Left to right and slightly diagonal downward
+const vec2 FLOW_DIR = vec2(0.96, -0.28);
+const vec2 PERP_DIR = vec2(0.28, 0.96);
 
-// Polynomial smooth-minimum for organic liquid merging (smin)
-float smin(float a, float b, float k) {
-  float h = max(k - abs(a - b), 0.0) / k;
-  return min(a, b) - h * h * h * k * (1.0 / 6.0);
+// Fast 2D pseudo-random hash
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+  return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
 }
 
-// Fast 2D value noise for river turbulence & organic edge wobble
-float hash(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
-}
-
+// Simplex-style smooth gradient noise
 float noise(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  vec2 u = f * f * (3.0 - 2.0 * f);
-  return mix(mix(hash(i + vec2(0.0, 0.0)), hash(i + vec2(1.0, 0.0)), u.x),
-             mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+  const float K1 = 0.366025404; // (sqrt(3)-1)/2
+  const float K2 = 0.211324865; // (3-sqrt(3))/6
+  vec2 i = floor(p + (p.x + p.y) * K1);
+  vec2 a = p - i + (i.x + i.y) * K2;
+  vec2 o = (a.x > a.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+  vec2 b = a - o + K2;
+  vec2 c = a - 1.0 + 2.0 * K2;
+  vec3 h = max(0.5 - vec3(dot(a, a), dot(b, b), dot(c, c)), 0.0);
+  vec3 n = h * h * h * h * vec3(dot(a, hash2(i)), dot(b, hash2(i + o)), dot(c, hash2(i + 1.0)));
+  return dot(n, vec3(70.0));
 }
 
+// 3-octave Fractional Brownian Motion for fast, lightweight liquid advection
 float fbm(vec2 p) {
   float v = 0.0;
   float a = 0.5;
-  mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
+  mat2 rot = mat2(0.87, -0.48, 0.48, 0.87);
   for (int i = 0; i < 3; i++) {
     v += a * noise(p);
-    p = rot * p * 2.0;
+    p = rot * p * 2.04;
     a *= 0.5;
   }
   return v;
 }
 
-// =========================================================================
-// FLOW FIELD / VECTOR FIELD MATH FUNCTION
-// Computes the 2D directional current velocity V(p, t) at any spatial coordinate.
-// Forms a river-like directional current with serpentine meanders and eddies,
-// driving blob velocities along a global downstream flow.
-// =========================================================================
-vec2 getFlowField(vec2 p, float t) {
-  // Global river current direction vector (flows diagonally downstream)
-  vec2 globalCurrent = normalize(vec2(0.86, -0.50));
-  vec2 crossCurrent = vec2(-globalCurrent.y, globalCurrent.x); // Perpendicular to stream
-
-  // Longitudinal position along the river's main streamline
-  float longitudinal = dot(p, globalCurrent);
-
-  // Serpentine river meander: wave function that bends the vector field
-  float meander = sin(longitudinal * 1.6 - t * 0.40) * 0.42
-                + cos(longitudinal * 0.75 + t * 0.22) * 0.22;
-
-  // Local vorticity & eddy perturbation using divergence-free curl from noise
-  vec2 sampleCoord = p * 1.35 - globalCurrent * (t * 0.38);
-  float n1 = noise(sampleCoord + vec2(1.7, 4.3));
-  float n2 = noise(sampleCoord + vec2(8.1, 2.9));
-  vec2 eddy = vec2(n2 - 0.5, 0.5 - n1) * 0.32;
-
-  // Directional current velocity: strong downstream base + cross-stream meander + local eddies
-  vec2 velocity = globalCurrent * 1.15 + crossCurrent * meander + eddy;
-
-  // --- SUBTLE VORTEX EFFECT AROUND MOUSE POSITION ---
-  // Introduces a natural hydrodynamic eddy and circulation that parts and swirls
-  // the river current around the cursor like water flowing around an obstacle.
-  if (u_mouse_active > 0.01) {
-    vec2 toCursor = p - u_mouse;
-    float distToMouse = length(toCursor);
-
-    // Smooth Gaussian radial falloff for the cursor vortex
-    float vortexFalloff = exp(-distToMouse * 2.2) * u_mouse_active;
-
-    // Tangential circulation vector (swirls liquid around cursor)
-    vec2 tangentialSwirl = vec2(-toCursor.y, toCursor.x) / (distToMouse + 0.14);
-
-    // River wake deflection (parting stream smoothly around cursor)
-    vec2 deflection = normalize(toCursor + 0.0001) * exp(-distToMouse * 3.2) * 0.40;
-
-    // Combine circulation and deflection into the vector field velocity
-    velocity += (tangentialSwirl * 0.95 + deflection) * vortexFalloff;
-  }
-
-  return velocity;
+// Full-spectrum vibrant cosine palette:
+// Magenta -> Violet -> Indigo -> Blue -> Cyan -> Teal -> Green -> Yellow -> Orange -> Red
+vec3 getRainbowSpectrum(float t) {
+  vec3 a = vec3(0.54, 0.50, 0.52);
+  vec3 b = vec3(0.48, 0.52, 0.48);
+  vec3 c = vec3(1.0, 1.0, 1.0);
+  vec3 d = vec3(0.85, 0.55, 0.18);
+  return clamp(a + b * cos(6.283185 * (c * t + d)), 0.0, 1.0);
 }
 
-// Compute blob trajectory and velocity driven by the global flow field current
-vec2 getFlowFieldBlobPosition(float t, float phaseOffset, float lateralLane) {
-  vec2 globalCurrent = normalize(vec2(0.86, -0.50));
-  vec2 crossCurrent = vec2(-globalCurrent.y, globalCurrent.x);
+// Domain-warped height field evaluating flowing liquid surface
+float getRiverHeight(vec2 p, float t, float swirlStrength) {
+  // Sweeping meandering serpentine curve along river path
+  float streamCoord = dot(p, FLOW_DIR);
+  float meander = sin(streamCoord * 1.35 - t * 0.38) * 0.38 + cos(streamCoord * 0.65 + t * 0.22) * 0.22;
 
-  // Longitudinal loop along the stream: continuous downstream transport
-  float loopSpan = 4.2;
-  float u = mod(t + phaseOffset, loopSpan) - (loopSpan * 0.5);
+  // Primary stream advected coordinate
+  vec2 p1 = p + PERP_DIR * meander - FLOW_DIR * (t * 0.45);
 
-  // Evaluate flow field velocity along this streamline slice
-  vec2 basePos = globalCurrent * u + crossCurrent * lateralLane;
-  vec2 v = getFlowField(basePos, t);
+  // Slower secondary current at different speed and slightly different angle (Parallax depth)
+  vec2 dir2 = normalize(vec2(0.88, -0.46));
+  vec2 p2 = p - dir2 * (t * 0.26) + vec2(3.14, 7.82);
 
-  // Blob velocity and trajectory driven by the flow field vector:
-  // Downstream coordinate u + lateral displacement driven by the vector field
-  vec2 pos = globalCurrent * u + crossCurrent * (lateralLane + v.y * 0.38);
-  return pos;
-}
+  // Occasional gentle whirlpools & eddies drifting downstream and dissolving
+  // Whirlpool 1:
+  vec2 wpCenter1 = FLOW_DIR * (mod(t * 0.32, 6.4) - 3.2) + PERP_DIR * (sin(t * 0.22) * 0.55);
+  vec2 toWp1 = p - wpCenter1;
+  float dWp1 = length(toWp1);
+  float wpEnvelope1 = smoothstep(2.4, 0.0, dWp1) * (0.5 + 0.5 * sin(t * 0.42));
+  vec2 wpSwirl1 = vec2(-toWp1.y, toWp1.x) / (dWp1 + 0.22) * wpEnvelope1 * 0.45;
 
-// Metaball & River scalar field distance function
-float mapField(vec2 p, float t) {
-  // Sample local vector field velocity at current position (includes mouse vortex)
-  vec2 v = getFlowField(p, t);
+  // Whirlpool 2 (Counter-current tributary):
+  vec2 wpCenter2 = FLOW_DIR * (mod(t * 0.24 + 3.2, 6.4) - 3.2) - PERP_DIR * (cos(t * 0.26) * 0.62);
+  vec2 toWp2 = p - wpCenter2;
+  float dWp2 = length(toWp2);
+  float wpEnvelope2 = smoothstep(2.2, 0.0, dWp2) * (0.5 + 0.5 * cos(t * 0.35 + 1.4));
+  vec2 wpSwirl2 = vec2(toWp2.y, -toWp2.x) / (dWp2 + 0.28) * wpEnvelope2 * 0.40;
 
-  // Continuous serpentine riverbed channel aligned with the flow field
-  vec2 globalCurrent = normalize(vec2(0.86, -0.50));
-  vec2 crossCurrent = vec2(-globalCurrent.y, globalCurrent.x);
-  float streamPos = dot(p, globalCurrent);
-  float meander = sin(streamPos * 1.6 - t * 0.40) * 0.36 + cos(streamPos * 0.75 + t * 0.22) * 0.18;
-  float riverDist = abs(dot(p, crossCurrent) - meander) - 0.23;
-
-  // Fluid coordinate advected along the vector field:
-  // Creates organic streamline stretching along the current vectors
-  vec2 flowOffset = v * (0.075 * u_wobble_strength);
-  vec2 pw = p - flowOffset;
-
-  // Mouse interaction: vortex eddy circulation + smooth inward damping
+  // Pointer gentle disturbance (soft ripple and local swirl)
+  vec2 mousePerturb = vec2(0.0);
   if (u_mouse_active > 0.01) {
-    vec2 relMouse = pw - u_mouse;
-    float dMouse = length(relMouse);
-    float vortexKern = exp(-dMouse * 2.2) * u_mouse_active;
-
-    // Tangential vortex rotation vector around cursor
-    vec2 curlDir = vec2(-relMouse.y, relMouse.x) / (dMouse + 0.14);
-    pw += curlDir * (0.24 * vortexKern);
-
-    // Soft inward attraction toward cursor center
-    pw -= normalize(relMouse + 0.0001) * (0.16 * vortexKern);
+    vec2 toMouse = p - u_mouse;
+    float dMouse = length(toMouse);
+    float mouseFalloff = exp(-dMouse * 2.3) * u_mouse_active;
+    vec2 mouseSwirl = vec2(-toMouse.y, toMouse.x) / (dMouse + 0.16) * 0.65;
+    float mouseRipple = sin(dMouse * 22.0 - t * 8.0) * 0.16;
+    mousePerturb = (mouseSwirl + normalize(toMouse + 0.001) * mouseRipple) * mouseFalloff;
   }
 
-  // 6 Fluid Blobs whose velocities and positions are driven by the vector field
-  float tFlow = t * 0.54;
+  // Domain Warping: Layer 1
+  vec2 warpQ = vec2(
+    fbm(p1 * 1.75 + wpSwirl1 + mousePerturb),
+    fbm(p1 * 1.75 + vec2(5.2, 1.3) + wpSwirl2 + mousePerturb)
+  ) * swirlStrength;
 
-  // Blob 1: Main river surge (center lane)
-  vec2 c1 = getFlowFieldBlobPosition(tFlow * 1.05, 0.0, 0.0);
-  float r1 = 0.41 + 0.05 * sin(t * 1.2) + u_splash_pulse * 0.18;
-  float d1 = length(pw - c1) - r1;
+  // Domain Warping: Layer 2 with secondary current
+  vec2 warpR = vec2(
+    fbm(p2 * 2.5 + 2.5 * warpQ),
+    fbm(p2 * 2.5 + vec2(8.3, 2.8) + 2.5 * warpQ)
+  ) * swirlStrength;
 
-  // Blob 2: Chasing fast droplet (right bank)
-  vec2 c2 = getFlowFieldBlobPosition(tFlow * 1.30, 1.35, 0.18);
-  float r2 = 0.33 + 0.04 * cos(t * 1.1 + 1.4) + u_splash_pulse * 0.14;
-  float d2 = length(pw - c2) - r2;
+  // Final height field
+  float h = fbm(p1 * 2.1 + 3.2 * warpR) * 0.5 + 0.5;
 
-  // Blob 3: Meandering mid-stream mass (left bank)
-  vec2 c3 = getFlowFieldBlobPosition(tFlow * 0.95, 2.65, -0.16);
-  float r3 = 0.37 + 0.04 * sin(t * 0.9 + 2.0) + u_splash_pulse * 0.13;
-  float d3 = length(pw - c3) - r3;
+  // Bright glossy ripple waves traveling along the river current
+  float ripple = sin(dot(p1, FLOW_DIR) * 16.0 + warpR.x * 5.2 - t * 3.4) * 0.065;
+  h += ripple;
 
-  // Blob 4: Wide river eddy (outer sweep)
-  vec2 c4 = getFlowFieldBlobPosition(tFlow * 1.15, 2.05, 0.22);
-  float r4 = 0.35 + 0.045 * sin(t * 1.0 + 3.2) + u_splash_pulse * 0.15;
-  float d4 = length(pw - c4) - r4;
-
-  // Blob 5: Counter-swirl tributary (inner curve)
-  vec2 c5 = getFlowFieldBlobPosition(tFlow * 0.90, 3.45, -0.22);
-  float r5 = 0.29 + 0.03 * cos(t * 1.3 + 0.5) + u_splash_pulse * 0.10;
-  float d5 = length(pw - c5) - r5;
-
-  // Blob 6: Ambient crest droplet (downstream crest)
-  vec2 c6 = getFlowFieldBlobPosition(tFlow * 1.22, 0.75, 0.08);
-  float r6 = 0.32 + 0.035 * sin(t * 1.1 + 4.0) + u_splash_pulse * 0.11;
-  float d6 = length(pw - c6) - r6;
-
-  // Smooth union (smin) bridges and merges the river channel and flowing blobs
-  float blendK = 0.36;
-  float d = smin(riverDist, d1, blendK);
-  d = smin(d, d2, blendK);
-  d = smin(d, d3, blendK);
-  d = smin(d, d4, blendK);
-  d = smin(d, d5, blendK);
-  d = smin(d, d6, blendK);
-
-  // Dynamic surface ripples moving along the vector field direction
-  float riverStreaks = sin(dot(pw, normalize(v)) * 12.0 - t * 4.4) * 0.022 * u_wobble_strength;
-  d += riverStreaks;
-
-  // Subtle thinking ripple expansion during analysis loading
+  // Thinking pulse ripple during resume analysis loading
   if (u_thinking_pulse > 0.0) {
-    float rip = sin(length(pw) * 16.0 - u_thinking_pulse) * 0.03 * u_wobble_strength;
-    d += rip;
+    float rip = sin(length(p) * 14.0 - u_thinking_pulse) * exp(-length(p) * 0.4) * 0.085;
+    h += rip;
   }
 
-  return d;
+  return clamp(h, 0.0, 1.0);
 }
 
 void main() {
   vec2 uv = v_uv;
-  vec2 p = (uv * 2.0 - 1.0);
+  vec2 p = (uv - 0.5) * 2.0;
   p.x *= u_resolution.x / u_resolution.y;
 
   float t = u_time;
-  float d = mapField(p, t);
+  float swirlStr = u_swirl_strength;
 
-  // Background: Deep dark gradient behind liquid
-  vec3 bgCol = mix(vec3(0.015, 0.022, 0.038), vec3(0.004, 0.007, 0.016), uv.y);
-  // Ambient back-glow from the glowing river modulated by the theme's ambient light
-  bgCol += mix(u_color1, u_ambient_tint, 0.35) * (0.07 + 0.035 * u_ambient_pulse * u_ambient_intensity) * (1.0 - clamp(length(p * 0.45), 0.0, 1.0));
+  // Evaluate central height
+  float hCenter = getRiverHeight(p, t, swirlStr);
 
-  // Outside liquid river body with soft glowing aura falloff
-  if (d > 0.08) {
-    float aura = exp(-d * 22.0) * (0.32 + 0.12 * u_ambient_pulse * u_ambient_intensity);
-    vec3 col = bgCol + mix(u_color3, u_ambient_tint, 0.30) * aura;
-    gl_FragColor = vec4(col, 1.0);
-    return;
-  }
+  // Compute 3D surface normals via finite differences
+  vec2 eps = vec2(2.5 / u_resolution.y, 0.0);
+  float hR = getRiverHeight(p + eps.xy, t, swirlStr);
+  float hL = getRiverHeight(p - eps.xy, t, swirlStr);
+  float hU = getRiverHeight(p + eps.yx, t, swirlStr);
+  float hD = getRiverHeight(p - eps.yx, t, swirlStr);
 
-  // Compute 3D surface normals from field gradient
-  vec2 eps = vec2(2.0 / u_resolution.y, 0.0);
-  float dx = mapField(p + eps.xy, t) - mapField(p - eps.xy, t);
-  float dy = mapField(p + eps.yx, t) - mapField(p - eps.yx, t);
-
-  float fluidDepth = clamp(-d * 3.8, 0.0, 1.0);
-  float zNormal = mix(0.12, 0.95, fluidDepth);
-  vec3 N = normalize(vec3(-dx, -dy, zNormal));
+  vec3 N = normalize(vec3(-(hR - hL), -(hU - hD), (eps.x * 2.0) * (2.85 / u_gloss_strength)));
   vec3 V = vec3(0.0, 0.0, 1.0); // Viewer facing camera
 
-  // --- ULTRA-GLOSSY VISIBLE SHADING & LIGHTING ---
-  // Key light: overhead high-altitude studio lamp
-  vec3 L1 = normalize(vec3(0.48, 0.72, 0.82));
-  // Secondary fill light: subtle bottom-left cool kicker
+  // --- GLOSSY LIGHTING AND SHADING ---
+  // Overhead studio key light
+  vec3 L1 = normalize(vec3(0.44, 0.70, 0.76));
+  // Secondary kicker fill light
   vec3 L2 = normalize(vec3(-0.62, -0.35, 0.65));
 
   float diff1 = max(0.0, dot(N, L1));
   float diff2 = max(0.0, dot(N, L2));
-  float diffuse = diff1 * 0.72 + diff2 * 0.28 + 0.18;
+  float diffuse = diff1 * 0.70 + diff2 * 0.30 + 0.24;
 
-  // 1. Sharp Hotspot Specular Glint (Molten Chrome / High-Gloss Glass reflection)
+  // 1. Sharp Hotspot Specular Glint (Molten glass reflection)
   vec3 H1 = normalize(L1 + V);
-  float specHotspot = pow(max(0.0, dot(N, H1)), 120.0) * 2.2 * u_gloss_strength;
+  float specHotspot = pow(max(0.0, dot(N, H1)), 110.0) * 2.4 * u_gloss_strength;
 
   // 2. Broad Liquid Satin Sheen
-  float specSatin = pow(max(0.0, dot(N, H1)), 26.0) * 0.75 * u_gloss_strength;
+  float specSatin = pow(max(0.0, dot(N, H1)), 24.0) * 0.70 * u_gloss_strength;
 
   // 3. Secondary Light Specular Glint
   vec3 H2 = normalize(L2 + V);
-  float specSecondary = pow(max(0.0, dot(N, H2)), 68.0) * 0.65 * u_gloss_strength;
+  float specSecondary = pow(max(0.0, dot(N, H2)), 64.0) * 0.55 * u_gloss_strength;
 
-  // 4. Directional River Current Streak (Gloss highlight tracing the vector field flow)
-  vec2 localV = getFlowField(p, t);
-  vec3 flow3D = normalize(vec3(normalize(localV), 0.32));
-  float riverStreak = pow(max(0.0, 1.0 - abs(dot(N, flow3D))), 18.0) * 0.70 * u_gloss_strength;
+  // 4. Directional River Current Streak (Gloss highlight tracing river flow lines)
+  vec3 flow3D = normalize(vec3(FLOW_DIR, 0.32));
+  float riverStreak = pow(max(0.0, 1.0 - abs(dot(N, flow3D))), 15.0) * 0.75 * u_gloss_strength;
 
   // 5. Environmental Reflection Horizon
   vec3 R = reflect(-V, N);
-  float envReflection = smoothstep(-0.25, 0.75, R.y) * 0.55 + pow(max(0.0, R.z), 3.0) * 0.4;
+  float envReflection = smoothstep(-0.25, 0.75, R.y) * 0.45 + pow(max(0.0, R.z), 3.0) * 0.35;
 
-  // 6. Fresnel Rim Glow on Liquid Edges
+  // 6. Fresnel Rim Glow on Surface Grazing Angles
   float NdotV = clamp(dot(N, V), 0.0, 1.0);
-  float fresnel = pow(1.0 - NdotV, 2.4);
+  float fresnel = pow(1.0 - NdotV, 2.5);
 
-  // 7. Iridescent Chromatic Dispersion at Grazing Angles
-  vec3 chroma = vec3(
-    sin(fresnel * 4.5 + 0.2),
-    sin(fresnel * 4.5 + 2.3),
-    sin(fresnel * 4.5 + 4.4)
-  ) * 0.5 + 0.5;
-  vec3 iridescentSheen = mix(vec3(1.0), chroma, 0.65);
+  // --- FULL-SPECTRUM MULTICOLOUR PALETTE & THEME BLEND ---
+  // Palette travels slowly downstream (approx 30-second cycle)
+  float paletteTravel = (dot(p, FLOW_DIR) * 0.28 + (hCenter - 0.5) * 0.45 + fract(t / 30.0));
+  vec3 rainbowCol = getRainbowSpectrum(paletteTravel);
 
-  // Multi-color liquid blend across the river channel
-  float colorPos = clamp((p.y + p.x * 0.5) * 0.55 + 0.5, 0.0, 1.0);
-  vec3 baseFluidCol = mix(u_color1 * 1.25, u_color2 * 1.3, colorPos);
-  vec3 surfaceCol = mix(baseFluidCol, u_color3 * 1.2, fresnel * 0.75);
+  // Theme-biased colour blend when theme switcher or match score is active
+  vec3 themeCol = mix(u_color1 * 1.15, u_color2 * 1.25, clamp(hCenter * 1.2, 0.0, 1.0));
+  themeCol = mix(themeCol, u_color3 * 1.30, fresnel * 0.65);
 
-  // Translucency & inner glass glow
-  float fluidAlpha = smoothstep(0.05, -0.04, d);
+  vec3 baseFluidCol = mix(rainbowCol, themeCol, u_theme_bias);
 
-  // --- SUBTLE AMBIENT LIGHT PULSE & GLOSSY DEPTH ENHANCEMENT ---
-  // Modulates surface intensity and inner depth illumination according to the system theme preset
-  float ambientSheenFactor = 1.0 + (u_ambient_pulse * 0.18) * u_ambient_intensity;
-  float depthScatter = pow(clamp(-d * 4.2, 0.0, 1.0), 1.25) * (0.32 + 0.16 * u_ambient_pulse * u_ambient_intensity);
+  // Darker troughs and brighter illuminated crests for real depth and dimension
+  float depthTrough = mix(0.42, 1.28, smoothstep(0.12, 0.88, hCenter));
 
-  // Composite glossy liquid river
-  vec3 fluidCol = surfaceCol * diffuse;
-  fluidCol += depthScatter * mix(u_color2, u_ambient_tint, 0.45);
-  fluidCol += (specHotspot + specSecondary * 0.5) * mix(vec3(1.0), u_ambient_tint, 0.16) * ambientSheenFactor;
-  fluidCol += specSatin * mix(vec3(1.0), u_color3, 0.35) * ambientSheenFactor;
-  fluidCol += riverStreak * mix(vec3(0.96, 0.98, 1.0), u_ambient_tint, 0.14) * ambientSheenFactor;
-  fluidCol += envReflection * mix(u_color3, u_ambient_tint, 0.40) * (0.45 + 0.20 * u_ambient_pulse * u_ambient_intensity);
-  fluidCol += fresnel * u_color3 * 1.15 * iridescentSheen;
+  // Ambient Sheen and breathing pulse from theme profile
+  float ambientSheenFactor = 1.0 + (u_ambient_pulse * 0.16) * u_ambient_intensity;
 
-  vec3 finalColor = mix(bgCol, fluidCol, fluidAlpha);
-  gl_FragColor = vec4(finalColor, 1.0);
+  // --- FINAL GLOSSY COMPOSITION ---
+  vec3 fluidCol = baseFluidCol * diffuse * depthTrough;
+  fluidCol += (specHotspot + specSecondary * 0.5) * mix(vec3(1.0), u_ambient_tint, 0.14) * ambientSheenFactor;
+  fluidCol += specSatin * mix(vec3(1.0), baseFluidCol, 0.30) * ambientSheenFactor;
+  fluidCol += riverStreak * vec3(1.0, 1.0, 1.0) * ambientSheenFactor;
+  fluidCol += envReflection * mix(baseFluidCol, u_ambient_tint, 0.35) * (0.42 + 0.18 * u_ambient_pulse * u_ambient_intensity);
+  fluidCol += fresnel * mix(baseFluidCol, vec3(1.0), 0.35) * 0.70;
+
+  gl_FragColor = vec4(fluidCol, 1.0);
 }
 `;
 
@@ -481,7 +359,7 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
     }
   }, [mode]);
 
-  // Tab visibility
+  // Tab visibility: pause rendering when tab is hidden
   const [isTabHidden, setIsTabHidden] = useState<boolean>(() => {
     return typeof document !== 'undefined' ? document.hidden : false;
   });
@@ -492,7 +370,7 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Reduced motion preference
+  // Reduced motion preference: run at 40% speed with gentler swirls
   const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -513,7 +391,7 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
   const frameCountRef = useRef<number>(0);
   const lastFpsTimestampRef = useRef<number>(performance.now());
 
-  // Interactive mouse cursor coordinates tracked in React state
+  // Interactive mouse cursor coordinates
   const [mouseCoords, setMouseCoords] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const mouseCoordsRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const dampedMouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -533,14 +411,25 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
     prevHasAnalyzedRef.current = hasAnalyzed;
   }, [hasAnalyzed]);
 
-  // Mouse event listeners updating x/y coordinates in React state
+  // Pointer event listeners updating coordinates
   useEffect(() => {
-    const handlePointerMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
       const w = window.innerWidth || 1;
       const h = window.innerHeight || 1;
       const aspect = w / h;
-      const newX = ((e.clientX / w) * 2.0 - 1.0) * aspect;
-      const newY = -((e.clientY / h) * 2.0 - 1.0);
+      let clientX = 0;
+      let clientY = 0;
+
+      if ('touches' in e && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else if ('clientX' in e) {
+        clientX = (e as MouseEvent).clientX;
+        clientY = (e as MouseEvent).clientY;
+      }
+
+      const newX = ((clientX / w) * 2.0 - 1.0) * aspect;
+      const newY = -((clientY / h) * 2.0 - 1.0);
 
       const nextCoords = { x: newX, y: newY };
       setMouseCoords(nextCoords);
@@ -549,21 +438,23 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
       mouseLastMovedRef.current = performance.now();
     };
 
-    window.addEventListener('mousemove', handlePointerMove, { passive: true });
-    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('mousemove', handlePointerMove as any, { passive: true });
+    window.addEventListener('pointermove', handlePointerMove as any, { passive: true });
+    window.addEventListener('touchmove', handlePointerMove as any, { passive: true });
     return () => {
-      window.removeEventListener('mousemove', handlePointerMove);
-      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('mousemove', handlePointerMove as any);
+      window.removeEventListener('pointermove', handlePointerMove as any);
+      window.removeEventListener('touchmove', handlePointerMove as any);
     };
   }, []);
 
-  // Convert intensity prop to speed and wobble multipliers
-  const { speedMult, wobbleMult } = useMemo(() => {
+  // Intensity controls: speed and swirl multipliers
+  const { speedMult, swirlMult } = useMemo(() => {
     let s = 1.0;
     let w = 1.0;
     if (intensity === 'calm') {
       s = 0.58;
-      w = 0.55;
+      w = 0.65;
     } else if (intensity === 'lively') {
       s = 1.55;
       w = 1.55;
@@ -571,21 +462,24 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
       s = intensity;
       w = intensity;
     }
-    return { speedMult: s, wobbleMult: w };
+    return { speedMult: s, swirlMult: w };
   }, [intensity]);
 
-  // Color management: Idle 25s loop or score-based or manual preset
-  const [currentColorName, setCurrentColorName] = useState<string>('deep sapphire');
+  // Color management and theme bias tracking
+  const [currentColorName, setCurrentColorName] = useState<string>('full spectrum river');
   const targetColorsRef = useRef<{ c1: [number, number, number]; c2: [number, number, number]; c3: [number, number, number] }>({
-    c1: [4, 28, 75],
-    c2: [14, 95, 215],
-    c3: [34, 185, 255],
+    c1: [180, 20, 160],
+    c2: [20, 110, 240],
+    c3: [30, 220, 255],
   });
   const currentRenderColorsRef = useRef<{ c1: [number, number, number]; c2: [number, number, number]; c3: [number, number, number] }>({
-    c1: [4, 28, 75],
-    c2: [14, 95, 215],
-    c3: [34, 185, 255],
+    c1: [180, 20, 160],
+    c2: [20, 110, 240],
+    c3: [30, 220, 255],
   });
+
+  const targetThemeBiasRef = useRef<number>(0.0);
+  const currentThemeBiasRef = useRef<number>(0.0);
 
   useEffect(() => {
     if (themePreset !== 'auto') {
@@ -617,11 +511,13 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
       }
 
       targetColorsRef.current = { c1, c2, c3 };
+      targetThemeBiasRef.current = 0.82;
       setCurrentColorName(name);
       return;
     }
 
     if (hasAnalyzed && matchScore !== null && matchScore !== undefined) {
+      targetThemeBiasRef.current = 0.82;
       if (matchScore >= 75) {
         targetColorsRef.current = {
           c1: [5, 48, 36],
@@ -644,6 +540,10 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
         };
         setCurrentColorName(`crimson river (low: ${matchScore}%)`);
       }
+    } else {
+      // Default: full-spectrum rainbow river
+      targetThemeBiasRef.current = 0.0;
+      setCurrentColorName('full spectrum multicolour river');
     }
   }, [themePreset, hasAnalyzed, matchScore]);
 
@@ -683,7 +583,7 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
     }
 
     if (!gl) {
-      console.warn('WebGL unavailable, falling back to SVG gooey liquid renderer');
+      console.warn('WebGL unavailable, falling back to SVG liquid river renderer');
       setCurrentMode('svg');
       onModeChange?.('svg');
       return false;
@@ -746,8 +646,9 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
       u_color1: gl.getUniformLocation(program, 'u_color1'),
       u_color2: gl.getUniformLocation(program, 'u_color2'),
       u_color3: gl.getUniformLocation(program, 'u_color3'),
+      u_theme_bias: gl.getUniformLocation(program, 'u_theme_bias'),
       u_gloss_strength: gl.getUniformLocation(program, 'u_gloss_strength'),
-      u_wobble_strength: gl.getUniformLocation(program, 'u_wobble_strength'),
+      u_swirl_strength: gl.getUniformLocation(program, 'u_swirl_strength'),
       u_splash_pulse: gl.getUniformLocation(program, 'u_splash_pulse'),
       u_thinking_pulse: gl.getUniformLocation(program, 'u_thinking_pulse'),
       u_ambient_pulse: gl.getUniformLocation(program, 'u_ambient_pulse'),
@@ -760,7 +661,7 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
 
     const handleContextLost = (e: Event) => {
       e.preventDefault();
-      console.warn('WebGL context lost, falling back to SVG gooey liquid renderer');
+      console.warn('WebGL context lost, falling back to SVG liquid river renderer');
       setCurrentMode('svg');
       onModeChange?.('svg');
     };
@@ -826,37 +727,19 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
           mouseActiveRef.current = Math.max(0, mouseActiveRef.current - rawDt * 0.7);
         }
 
-        if (themePreset === 'auto' && (!hasAnalyzed || matchScore === null)) {
-          const loopPeriod = 25.0;
-          const loopTime = animTimeRef.current % loopPeriod;
-          const pct = loopTime / loopPeriod;
-
-          let k1 = LIQUID_25S_LOOP[0];
-          let k2 = LIQUID_25S_LOOP[1];
-          for (let i = 0; i < LIQUID_25S_LOOP.length - 1; i++) {
-            if (pct >= LIQUID_25S_LOOP[i].pct && pct <= LIQUID_25S_LOOP[i + 1].pct) {
-              k1 = LIQUID_25S_LOOP[i];
-              k2 = LIQUID_25S_LOOP[i + 1];
-              break;
-            }
-          }
-          const span = k2.pct - k1.pct;
-          const t = span > 0 ? (pct - k1.pct) / span : 0;
-
-          targetColorsRef.current = {
-            c1: lerpRGB(k1.c1, k2.c1, t),
-            c2: lerpRGB(k1.c2, k2.c2, t),
-            c3: lerpRGB(k1.c3, k2.c3, t),
-          };
-          setCurrentColorName(t < 0.5 ? k1.name : k2.name);
-        }
-
-        const colorLerpRate = Math.min(rawDt * 2.2, 1.0);
+        // Smooth 1.5s theme color and bias transition
+        const colorLerpRate = Math.min(rawDt * 1.8, 1.0);
         currentRenderColorsRef.current = {
           c1: lerpRGB(currentRenderColorsRef.current.c1, targetColorsRef.current.c1, colorLerpRate),
           c2: lerpRGB(currentRenderColorsRef.current.c2, targetColorsRef.current.c2, colorLerpRate),
           c3: lerpRGB(currentRenderColorsRef.current.c3, targetColorsRef.current.c3, colorLerpRate),
         };
+
+        currentThemeBiasRef.current = lerp(
+          currentThemeBiasRef.current,
+          targetThemeBiasRef.current,
+          colorLerpRate
+        );
       }
 
       if (currentMode === 'webgl' && glRef.current && programRef.current) {
@@ -864,10 +747,10 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
         const canvas = canvasRef.current;
 
         if (canvas) {
-          const isMobile = window.innerWidth < 768;
-          const dpr = Math.min(window.devicePixelRatio || 1, 1.5) * (isMobile ? 0.65 : 1.0);
-          const displayWidth = Math.floor(canvas.clientWidth * dpr);
-          const displayHeight = Math.floor(canvas.clientHeight * dpr);
+          // Render at 50% resolution to drastically reduce shader fill-rate cost
+          const dpr = Math.min(window.devicePixelRatio || 1, 1.5) * 0.50;
+          const displayWidth = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+          const displayHeight = Math.max(1, Math.floor(canvas.clientHeight * dpr));
 
           if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
             canvas.width = displayWidth;
@@ -885,13 +768,14 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
           gl.uniform3f(u.u_color1, c.c1[0] / 255, c.c1[1] / 255, c.c1[2] / 255);
           gl.uniform3f(u.u_color2, c.c2[0] / 255, c.c2[1] / 255, c.c2[2] / 255);
           gl.uniform3f(u.u_color3, c.c3[0] / 255, c.c3[1] / 255, c.c3[2] / 255);
+          gl.uniform1f(u.u_theme_bias, currentThemeBiasRef.current);
 
           gl.uniform1f(u.u_gloss_strength, LIQUID_CONFIG.glossStrength);
-          gl.uniform1f(u.u_wobble_strength, LIQUID_CONFIG.wobbleAmount * wobbleMult * (prefersReducedMotion ? 0.45 : 1.0));
+          gl.uniform1f(u.u_swirl_strength, LIQUID_CONFIG.swirlStrength * swirlMult * (prefersReducedMotion ? 0.5 : 1.0));
           gl.uniform1f(u.u_splash_pulse, splashPulseRef.current);
           gl.uniform1f(u.u_thinking_pulse, isAnalyzing ? thinkingPulseRef.current : 0.0);
 
-          // Subtle Ambient Light pulse tailored to system theme preset
+          // Ambient light profile
           const ambientProfile = THEME_AMBIENT_PROFILES[themePreset] || THEME_AMBIENT_PROFILES.auto;
           const ambientPulse = ambientProfile.calcPulse(animTimeRef.current);
           const ambientIntensity = isDark ? 1.0 : 0.85;
@@ -912,9 +796,9 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
       cancelAnimationFrame(rAFId);
       lastTimeRef.current = 0;
     };
-  }, [currentMode, isPaused, isTabHidden, prefersReducedMotion, isAnalyzing, hasAnalyzed, matchScore, themePreset, speedMult, wobbleMult, mouseCoords]);
+  }, [currentMode, isPaused, isTabHidden, prefersReducedMotion, isAnalyzing, hasAnalyzed, matchScore, themePreset, speedMult, swirlMult, mouseCoords]);
 
-  // Fallback SVG Gooey River Flow
+  // Fallback SVG Animated Liquid River Flow with feTurbulence + feDisplacementMap
   const [svgTime, setSvgTime] = useState(0);
   useEffect(() => {
     if (currentMode !== 'svg' || isPaused || isTabHidden) return;
@@ -927,18 +811,14 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
     return () => cancelAnimationFrame(animId);
   }, [currentMode, isPaused, isTabHidden]);
 
-  const c = currentRenderColorsRef.current;
-  const col1Hex = `rgb(${Math.round(c.c1[0])}, ${Math.round(c.c1[1])}, ${Math.round(c.c1[2])})`;
-  const col2Hex = `rgb(${Math.round(c.c2[0])}, ${Math.round(c.c2[1])}, ${Math.round(c.c2[2])})`;
-  const col3Hex = `rgb(${Math.round(c.c3[0])}, ${Math.round(c.c3[1])}, ${Math.round(c.c3[2])})`;
-
   return (
     <>
       {/* 
         ========================================================================
-        DYNAMIC GLOSSY LIQUID RIVER BACKGROUND
-        Flows continuously diagonally across screen like a liquid river.
-        High-gloss specular reflections, directional current lines, and metaball merges.
+        FULL-SCREEN GLOSSY MULTICOLOUR LIQUID RIVER BACKGROUND
+        Fills entire viewport edge to edge (position: fixed; inset: 0; z-index: 0).
+        Flows continuously left-to-right with domain-warped waves, secondary currents,
+        high-gloss specular highlights, iridescent thin-film sheen, and vibrant colors.
         ========================================================================
       */}
       <div
@@ -947,7 +827,7 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
           position: 'fixed',
           inset: 0,
           zIndex: 0,
-          backgroundColor: '#020617',
+          backgroundColor: '#030712',
         }}
         aria-hidden="true"
       >
@@ -962,66 +842,97 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
 
         {/* 
           ======================================================================
-          FALLBACK RENDERER: SVG GOOEY LIQUID RIVER
-          Activated if WebGL is unavailable or when user selects SVG mode
+          FALLBACK RENDERER: SVG DISPLACEMENT LIQUID RIVER
+          Activated if WebGL is unavailable or when context is lost
+          Animated feTurbulence + feDisplacementMap over multicolour river gradient
           ======================================================================
         */}
         {currentMode === 'svg' && (
           <div className="w-full h-full relative overflow-hidden bg-slate-950">
-            <svg className="w-full h-full absolute inset-0" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice">
+            <svg
+              className="w-full h-full absolute inset-0"
+              viewBox="0 0 1000 1000"
+              preserveAspectRatio="xMidYMid slice"
+            >
               <defs>
-                <filter id="gooey-liquid-river-filter" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur in="SourceGraphic" stdDeviation="30" result="blur" />
-                  <feColorMatrix
-                    in="blur"
-                    mode="matrix"
-                    values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 34 -11"
-                    result="goo"
+                <filter id="svg-liquid-river-displacement" x="-20%" y="-20%" width="140%" height="140%">
+                  <feTurbulence
+                    type="fractalNoise"
+                    baseFrequency="0.009 0.016"
+                    numOctaves="3"
+                    seed="7"
+                    result="noise"
                   />
-                  <feBlend in="SourceGraphic" in2="goo" />
+                  <feDisplacementMap
+                    in="SourceGraphic"
+                    in2="noise"
+                    scale="58"
+                    xChannelSelector="R"
+                    yChannelSelector="G"
+                    result="displaced"
+                  />
+                  <feGaussianBlur in="displaced" stdDeviation="4" result="blurred" />
+                  <feBlend in="SourceGraphic" in2="blurred" mode="multiply" />
                 </filter>
-                <linearGradient id="liquid-river-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor={col3Hex} stopOpacity="0.95" />
-                  <stop offset="50%" stopColor={col2Hex} stopOpacity="0.85" />
-                  <stop offset="100%" stopColor={col1Hex} stopOpacity="0.80" />
+
+                {/* Multicolour river gradient across spectrum */}
+                <linearGradient
+                  id="svg-river-spectrum-grad"
+                  x1="0%"
+                  y1="20%"
+                  x2="100%"
+                  y2="80%"
+                  gradientTransform={`rotate(${-14 + Math.sin(svgTime * 0.4) * 6})`}
+                >
+                  <stop offset="0%" stopColor="#d946ef" />   {/* Magenta */}
+                  <stop offset="18%" stopColor="#8b5cf6" />  {/* Violet */}
+                  <stop offset="36%" stopColor="#3b82f6" />  {/* Blue */}
+                  <stop offset="52%" stopColor="#06b6d4" />  {/* Cyan */}
+                  <stop offset="68%" stopColor="#10b981" />  {/* Emerald / Teal */}
+                  <stop offset="84%" stopColor="#eab308" />  {/* Yellow / Amber */}
+                  <stop offset="100%" stopColor="#f43f5e" /> {/* Red / Coral */}
+                </linearGradient>
+
+                <linearGradient id="svg-river-shimmer-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45" />
+                  <stop offset="50%" stopColor="#38bdf8" stopOpacity="0.15" />
+                  <stop offset="100%" stopColor="#c084fc" stopOpacity="0.35" />
                 </linearGradient>
               </defs>
 
-              <g filter="url(#gooey-liquid-river-filter)">
-                {/* 6 Flowing River Blobs looping downstream */}
-                {[0, 1, 2, 3, 4, 5].map((idx) => {
-                  const offset = idx * 200;
-                  const streamProgress = ((svgTime * 110 + offset) % 1300) - 150;
-                  const cx = streamProgress * 0.85;
-                  const cy = 250 + streamProgress * 0.52 + Math.sin(svgTime * 0.8 + idx) * 110;
-                  const r = 135 + Math.sin(svgTime * 1.2 + idx * 1.5) * 22;
-                  return (
-                    <circle
-                      key={idx}
-                      cx={cx}
-                      cy={cy}
-                      r={r}
-                      fill="url(#liquid-river-grad)"
-                    />
-                  );
-                })}
+              <g filter="url(#svg-liquid-river-displacement)">
+                {/* Full-screen flowing liquid base */}
+                <rect width="1000" height="1000" fill="url(#svg-river-spectrum-grad)" />
+
+                {/* Secondary flowing current ribbon */}
+                <path
+                  d={`M -200 ${300 + Math.sin(svgTime * 0.9) * 80} Q 300 ${150 + Math.cos(svgTime * 0.8) * 90} 700 ${450 + Math.sin(svgTime * 1.1) * 80} T 1200 ${350} L 1200 900 L -200 900 Z`}
+                  fill="url(#svg-river-spectrum-grad)"
+                  opacity="0.85"
+                />
+
+                {/* Meandering stream crests */}
+                <path
+                  d={`M -100 ${150 + Math.cos(svgTime * 0.7) * 60} Q 400 ${380 + Math.sin(svgTime * 0.8) * 80} 800 ${220 + Math.cos(svgTime * 0.9) * 60} T 1200 ${480} L 1200 700 L -100 700 Z`}
+                  fill="url(#svg-river-shimmer-grad)"
+                  opacity="0.55"
+                />
               </g>
 
-              {/* Glossy specular shine arcs along river blobs */}
-              {[0, 2, 4].map((idx) => {
-                const offset = idx * 200;
-                const streamProgress = ((svgTime * 110 + offset) % 1300) - 150;
-                const cx = streamProgress * 0.85 - 35;
-                const cy = 250 + streamProgress * 0.52 + Math.sin(svgTime * 0.8 + idx) * 110 - 35;
+              {/* Glossy specular shine lines traveling along river path */}
+              {[0, 1, 2].map((idx) => {
+                const yPos = 220 + idx * 260 + Math.sin(svgTime * 0.9 + idx * 1.8) * 70;
                 return (
-                  <circle
-                    key={`shine-${idx}`}
-                    cx={cx}
-                    cy={cy}
-                    r={45}
+                  <ellipse
+                    key={idx}
+                    cx={500 + Math.sin(svgTime * 0.6 + idx) * 350}
+                    cy={yPos}
+                    rx="320"
+                    ry="28"
                     fill="white"
-                    opacity="0.32"
-                    filter="blur(12px)"
+                    opacity="0.22"
+                    filter="blur(16px)"
+                    transform={`rotate(${-12 + idx * 4} 500 ${yPos})`}
                   />
                 );
               })}
@@ -1031,7 +942,7 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
 
         {/* 
           ======================================================================
-          READABILITY OVERLAY (13% OPACITY)
+          READABILITY OVERLAY (12% OPACITY)
           Lightweight so flowing liquid and glossy highlights shine through
           vibrantly while keeping text contrast WCAG AA readable
           ======================================================================
@@ -1039,7 +950,7 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.13)',
+            backgroundColor: 'rgba(0, 0, 0, 0.12)',
           }}
         />
 
@@ -1050,8 +961,8 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
       {/* 
         ========================================================================
         STATUS BADGE (BOTTOM-LEFT)
-        Shows: renderer (webgl/svg), colour state, blob count, and fps.
-        Clickable to toggle between WebGL and SVG Gooey fallback renderer.
+        Shows: renderer (webgl/svg), colour state, and fps.
+        Clickable to toggle between WebGL and SVG river renderers.
         ========================================================================
       */}
       <div
@@ -1061,7 +972,7 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
           setCurrentMode(next);
           onModeChange?.(next);
         }}
-        title="Click to toggle between WebGL and SVG Gooey liquid renderers"
+        title="Click to toggle between WebGL and SVG liquid river renderers"
         aria-live="polite"
       >
         <span
@@ -1070,7 +981,7 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({
           }`}
         />
         <span>
-          [LIQUID RIVER: {currentMode.toUpperCase()}] • {LIQUID_CONFIG.blobCount} blobs • {currentColorName} • ambient: {themePreset} • {fps} FPS
+          [LIQUID RIVER: {currentMode.toUpperCase()}] • multicolour flow • {currentColorName} • ambient: {themePreset} • {fps} FPS
           {prefersReducedMotion ? ' (motion: 40%)' : ''}
           {isPaused ? ' (PAUSED)' : ''}
           {isAnalyzing ? ' (THINKING)' : ''}
